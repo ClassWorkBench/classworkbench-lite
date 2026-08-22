@@ -232,11 +232,11 @@
         if (!probeEl || !cardEl) return;
         const seq = ++probeSeq;
 
-        // 方向箭头：贴左半屏 → 右箭头 ›（指示向右展开）；贴右半屏 → 左箭头 ‹（指示向左展开）
+        // 方向：贴左半屏 → 右箭头（指示向右展开）；贴右半屏 → 左箭头（指示向左展开）
         bodyEl.classList.remove('probe-left', 'probe-right');
         bodyEl.classList.add(side === 'left' ? 'probe-left' : 'probe-right');
         probeEl.style.background = color || '#5b6abf';
-        probeEl.textContent = side === 'left' ? '›' : '‹';
+        // 方向箭头用静态 SVG（floating.html 内置），贴左 → 右箭头、贴右 → 左箭头由 CSS 翻转
         // 点击逻辑：已淡化 → 恢复不透明（显示实心彩条）；未淡化 → 完全展开成完整卡片
         probeEl.onclick = () => {
             if (probeEl.classList.contains('probe-faded')) {

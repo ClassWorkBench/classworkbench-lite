@@ -87,8 +87,8 @@ html.float-window body.fade-out {
 */
 .float-actions {
     position: absolute;
-    top: 16px;
-    right: 18px;
+    top: 9px;
+    right: 12px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -186,7 +186,7 @@ html.float-window body.fade-out {
     background: rgba(0, 0, 0, 0.12);
     color: #1a1a1a;
 }
-.f-act .emoji {
+.f-act .f-ico {
     width: 16px;
     height: 16px;
     pointer-events: none;
@@ -217,8 +217,6 @@ html.float-window body.fade-out {
     align-items: center;
     justify-content: center;
     color: #fff;
-    font-size: 18px;
-    font-weight: 700;
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
@@ -227,6 +225,15 @@ html.float-window body.fade-out {
     border: 1px solid var(--glass-border);
     box-shadow: var(--card-shadow);
     transition: background 0.2s ease, filter 0.2s ease;
+}
+.float-probe svg {
+    width: 13px;
+    height: 13px;
+    display: block;
+}
+/* 箭头永远指向屏幕内侧（指示滑出方向）：贴左屏 → 右箭头，贴右屏 → 左箭头 */
+.probe-right .float-probe svg {
+    transform: scaleX(-1);
 }
 .float-probe:hover {
     filter: brightness(1.1);
