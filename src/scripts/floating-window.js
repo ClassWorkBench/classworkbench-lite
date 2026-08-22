@@ -217,7 +217,11 @@
     }
 
     // ============ 贴边探头模式 ============
-    const PROBE_SHRINK_MS = 200;  // 收起双泳道：卡片缩成彩条的过渡时长（CSS transition，可中断/反向）
+    // 收起双泳道：卡片缩条时长须与主进程窗口矩形动画（DOCK_ANIM_MS=240）对齐，
+    // 两泳道同缓动同时长 → 全程锁步，避免"先缩原地再滑向边缘"的两段感。
+    // 减弱动画下主进程时长减半，这里同步减半。
+    const PROBE_SHRINK_MS_NORMAL = 240;
+    const PROBE_SHRINK_MS_REDUCED = 120;
     let probeTimer = null;        // 收缩动画结束 → 切入探头模式的延迟定时器
     let probeSeq = 0;             // 递增 token：快速往返时让旧定时器/旧动画回调全部失效
 
@@ -255,15 +259,18 @@
         };
 
         // 收起双泳道：卡片先缩成彩条（transform scale + 学科实色 + 胶囊圆角），
-        // 动画结束后切入探头模式（窗口矩形动画由主进程并行驱动）
+        // 动画结束后切入探头模式（窗口矩形动画由主进程并行驱动，两泳道锁步）
         clearProbeTimers();
         cardEl.classList.add('probe-shrink');
+        const shrinkMs = document.body.classList.contains('reduce-anim')
+            ? PROBE_SHRINK_MS_REDUCED
+            : PROBE_SHRINK_MS_NORMAL;
         probeTimer = setTimeout(() => {
             probeTimer = null;
             if (seq !== probeSeq) return;
             bodyEl.classList.add('probe-mode');
             cardEl.classList.remove('probe-shrink');
-        }, PROBE_SHRINK_MS);
+        }, shrinkMs);
     }
 
     // 兜底：强制刷新 -webkit-app-region drag 区域注册。

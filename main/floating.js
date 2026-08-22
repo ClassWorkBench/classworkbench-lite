@@ -20,9 +20,10 @@ const DOCK_ANIM_MS = 240;    // 贴边/滑出动画时长（ms）
 const FADE_OUT_DELAY_MS = 3000; // 变成小探头后多久淡化（ms）
 const PROBE_FINAL_H = 36;    // 贴边后探头最终高度（px，固定 36 与宽 PROBE_W=26 配出胶囊形）
 
-// 贴边/展开缓动（双泳道：窗口矩形由本模块 setBounds 驱动，内容过渡由渲染层 CSS 驱动）
-const EASE_IN_OUT_QUINT = (t) => (t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2); // 收起：先加速后急停（吸附感）
-const EASE_OUT_QUINT = (t) => 1 - Math.pow(1 - t, 5); // 展开：先快后慢（弹出感）
+// 贴边/展开缓动（双泳道：窗口矩形由本模块 setBounds 驱动，内容过渡由渲染层 CSS 驱动。
+// 收起与滑出统一用 easeOutQuint（先快后慢），且内容/窗口同缓动、同时长 → 双泳道全程锁步，
+// 折叠与滑动叠合成一段连贯动作，不复现"先缩原地再滑向边缘"的两段感）
+const EASE_OUT_QUINT = (t) => 1 - Math.pow(1 - t, 5); // 先快后慢（弹出感）
 
 /**
  * 工厂模式创建浮窗模块。
@@ -417,26 +418,22 @@ function createFloatingModule({ BrowserWindow, screen, path, log, assetsDir, get
             fadeTimer: null, faded: false, phase: 'docking'
         };
 
-        // 双泳道收起：先发 probe 让渲染层把卡片缩成彩条（CSS transition，GPU 合成），
-        // 60ms 后窗口矩形再跟上（native setBounds），缩放过程盖住内容收缩，视觉连贯
+        // 双泳道收起：内容缩条（CSS transition，GPU 合成）与窗口矩形（native setBounds）
+        // 同一时刻起跑、同一缓动、同一时长 → 全程锁步，折叠与滑动叠合成"卷进边缘"的一段
+        // 连贯动作。原实现窗口延后 60ms + easeInOutQuint（先加速后急停），内容收缩却快起慢收，
+        // 两者相位错开 → 视觉上"先缩在原地、再滑向边缘"两段感。
         send(entry, 'float:probe', { side, color: entry.card.color || '#5b6abf' });
-        const spec = animSpec(DOCK_ANIM_MS, EASE_IN_OUT_QUINT);
-        setTimeout(() => {
+        const spec = animSpec(DOCK_ANIM_MS, EASE_OUT_QUINT);
+        animateRect(entry, from, toProbe, spec.ms, spec.ease, () => {
             if (!entry.dock || entry.win.isDestroyed()) return;
-            const cur = entry.win.getBounds();
-            animateRect(entry,
-                { x: cur.x, y: cur.y, width: cur.width, height: cur.height },
-                toProbe, spec.ms, spec.ease, () => {
-                    if (!entry.dock || entry.win.isDestroyed()) return;
-                    entry.dock.phase = 'probe';
-                    // 变成小探头后，3 秒淡化
-                    entry.dock.fadeTimer = setTimeout(() => {
-                        if (!entry.dock || entry.win.isDestroyed() || !modeActive) return;
-                        entry.dock.faded = true;
-                        send(entry, 'float:probe-fade');
-                    }, FADE_OUT_DELAY_MS);
-                });
-        }, 60);
+            entry.dock.phase = 'probe';
+            // 变成小探头后，3 秒淡化
+            entry.dock.fadeTimer = setTimeout(() => {
+                if (!entry.dock || entry.win.isDestroyed() || !modeActive) return;
+                entry.dock.faded = true;
+                send(entry, 'float:probe-fade');
+            }, FADE_OUT_DELAY_MS);
+        });
         return { success: true };
     }
 
@@ -464,7 +461,9 @@ function createFloatingModule({ BrowserWindow, screen, path, log, assetsDir, get
         return { success: true };
     }
 
-    /** 滑出：窗口矩形先展开（内容保持彩条态），到位后通知渲染层把彩条弹出成卡片（双泳道） */
+    /** 滑出：内容弹开与窗口矩形展开并行（双泳道），与收起的"内容先缩、窗口随后跟进"互为镜像。
+     *  原来等矩形动画结束才发 probe-off，期间内容仍处 probe-mode（visibility:hidden），
+     *  屏上只有一根彩色长条在变高，到位后内容才弹开 → "空长条长高 + 卡片弹开"两段感，不丝滑。 */
     function undockEntry(entry) {
         const d = entry.dock;
         if (!d) return;
@@ -473,11 +472,11 @@ function createFloatingModule({ BrowserWindow, screen, path, log, assetsDir, get
         entry.animating = false;
         const b = entry.win.getBounds();
         entry.dock = null;
+        // 先发 probe-off：渲染层立即把彩条弹成卡片（CSS spring，先快后慢带轻微回弹），
+        // 窗口矩形同时展开，两条泳道全程并行重叠 → 视觉连续。渲染层双 rAF 天然让内容晚几帧起跑。
+        send(entry, 'float:probe-off');
         const spec = animSpec(DOCK_ANIM_MS, EASE_OUT_QUINT);
-        animateRect(entry, { x: b.x, y: b.y, width: b.width, height: b.height }, d.from, spec.ms, spec.ease, () => {
-            if (entry.win.isDestroyed()) return;
-            send(entry, 'float:probe-off');
-        });
+        animateRect(entry, { x: b.x, y: b.y, width: b.width, height: b.height }, d.from, spec.ms, spec.ease);
     }
 
     function undockCard(wcId) {

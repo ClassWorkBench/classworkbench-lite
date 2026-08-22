@@ -88,7 +88,7 @@ html.float-window body.fade-out {
 .float-actions {
     position: absolute;
     top: 9px;
-    right: 12px;
+    right: 9px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -258,17 +258,19 @@ html.float-window body.fade-out {
 }
 
 /* ---------- 贴边收起/展开：内容过渡（双泳道的内容泳道，GPU 合成） ---------- */
-/* 收起：卡片缩成彩条（transition 可中断/反向，快速往返不撕裂） */
+/* 收起：卡片缩成彩条（transition 可中断/反向，快速往返不撕裂）。
+   缓动/时长须与主进程窗口矩形动画（easeOutQuint、240ms）一致——两泳道锁步，
+   折叠与滑动叠合成"卷进边缘"的一段连贯动作，不复现"先缩原地再滑向边缘"两段感。 */
 .float-card.probe-shrink {
     transform: scale(0.08);
     border-radius: 13px;
     background: var(--subject-accent, #5b6abf);
     box-shadow: none;
     opacity: 1;
-    transition: transform 0.18s cubic-bezier(0.7, 0, 0.3, 1),
-                border-radius 0.18s cubic-bezier(0.7, 0, 0.3, 1),
-                background-color 0.18s cubic-bezier(0.7, 0, 0.3, 1),
-                box-shadow 0.18s cubic-bezier(0.7, 0, 0.3, 1);
+    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+                border-radius 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+                background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 /* 展开：从彩条弹回卡片（spring 回弹，与 --transition-spring 一致） */
 .float-card.probe-grow {
