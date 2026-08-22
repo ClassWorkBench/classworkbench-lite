@@ -226,7 +226,9 @@
                     fragment.appendChild(card);
                 });
             }
-            cardsGrid.innerHTML = '';
+            // 移除旧的直排内容，但保留 .card-slide-layer（日期滑切转场中的旧屏快照层），
+            // 否则内层被 innerHTML='' 一并清掉，旧内容会在转场瞬间消失、只剩新屏滑入。
+            cardsGrid.querySelectorAll(':scope > :not(.card-slide-layer)').forEach((n) => n.remove());
             cardsGrid.appendChild(fragment);
             // 记录本次渲染的卡片集合，供下次渲染判断"新增"
             prevCardIds = new Set(todays.map(h => h.id));
@@ -477,19 +479,27 @@
             const seq = (this._slideSeq = (this._slideSeq || 0) + 1);
 
             const dirX = dir > 0 ? 1 : -1;
-            // 继承网格的多列布局与列距，让新旧「屏」内卡片保持与原布局一致的分列
+            // 读取网格当前（旧屏）计算样式，用于给旧屏镜像布局（列数/列距/flex 居中/最小高度）
             const cs = getComputedStyle(grid);
-            const cols = cs.columnCount;
-            const gap = cs.columnGap;
 
             // 0) 先量旧屏真实内容高度（此时卡片仍在网格流式里），用于锁高与复位
             const oldH = grid.scrollHeight;
 
             // 1) 把现有卡片全部移入绝对定位的「旧屏」层（带上多列布局）
+            //    ⚠️ 必须与「新屏」一样镜像网格的完整布局：空状态时网格是 flex 居中 + 45vh 最小高度，
+            //    若只复制 columnCount/columnGap，旧屏里的空状态指引会退化成顶部一整块的块级布局，
+            //    切换瞬间从居中「跳」到占满一大格，再被新屏顶回居中，看起来像闪烁。
             const oldLayer = document.createElement('div');
             oldLayer.className = 'card-slide-layer';
-            oldLayer.style.columnCount = cols;
-            oldLayer.style.columnGap = gap;
+            oldLayer.style.columnCount = cs.columnCount;
+            oldLayer.style.columnGap = cs.columnGap;
+            oldLayer.style.display = cs.display;
+            oldLayer.style.alignItems = cs.alignItems;
+            oldLayer.style.justifyContent = cs.justifyContent;
+            oldLayer.style.minHeight = cs.minHeight;
+            // 网格有 padding-bottom，若镜像层不带上它，空状态居中基准会差 6px → 迁移时整体上跳 3px
+            oldLayer.style.paddingTop = cs.paddingTop;
+            oldLayer.style.paddingBottom = cs.paddingBottom;
             grid.querySelectorAll(':scope > *').forEach((c) => oldLayer.appendChild(c));
             grid.appendChild(oldLayer);
 
@@ -518,6 +528,8 @@
             newLayer.style.alignItems = newCs.alignItems;
             newLayer.style.justifyContent = newCs.justifyContent;
             newLayer.style.minHeight = newCs.minHeight;
+            newLayer.style.paddingTop = newCs.paddingTop;
+            newLayer.style.paddingBottom = newCs.paddingBottom;
             grid.querySelectorAll(':scope > :not(.card-slide-layer)').forEach((c) => newLayer.appendChild(c));
             grid.appendChild(newLayer);
 
@@ -600,7 +612,24 @@
                 const nl = this._slideNewLayer;
                 if (nl && nl.parentNode === grid) {
                     const cards = Array.prototype.slice.call(nl.children);
-                    cards.forEach((c) => grid.appendChild(c));
+                    cards.forEach((c) => {
+                        // 空状态指引跨父迁移时 Chromium 会重启动画（相位归零），直接放回会
+                        // 从 translateY(0) 起跳，看起来像「卡顿后向上闪现」。
+                        // 迁移前记录 emptyFloat 当前相位，迁回后用 WAAPI 直接 seek 到同相位，
+                        // 让浮动动画无缝续播、不跳回原点。
+                        // （实测负 animation-delay 在重启动画上不生效，必须用 currentTime 精确 seek）
+                        let phase = 0;
+                        if (c.classList && c.classList.contains('grid-empty')) {
+                            const anim = c.getAnimations().find((a) => a.animationName === 'emptyFloat');
+                            if (anim) phase = anim.currentTime;
+                        }
+                        grid.appendChild(c);
+                        if (phase > 0) {
+                            void grid.offsetWidth; // 强制重排，确保迁移重启后的新动画对象已生成
+                            const anim2 = c.getAnimations().find((a) => a.animationName === 'emptyFloat');
+                            if (anim2) anim2.currentTime = phase;
+                        }
+                    });
                     nl.remove();
                 }
                 this._slideLayer = null;
