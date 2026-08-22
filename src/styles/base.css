@@ -58,19 +58,23 @@
     --scrollbar-thumb: #a8a8b0;
 }
 
-/* 日期切换的双屏滑切：旧屏快照层（绝对定位叠在新屏上方，平移动画后即被移除） */
+/* 日期切换的双屏滑切：旧屏快照层（绝对定位叠在新屏上方，平移动画后即被移除）
+   「相册式整屏滑切」：层铺满整窗（left:-14px / width:calc(100%+28px) 与 body 左右 14px 留白对齐），
+   卡片内容区经 0 14px padding 与网格内容对齐——滑切时整层跨整窗平移，而非只在边框容器内滑动。 */
 .card-slide-layer {
     position: absolute;
     top: 0;
-    left: 0;
-    width: 100%;
+    left: -14px;
+    width: calc(100% + 28px);
+    padding: 0 14px;
     z-index: 2;
     will-change: transform;
 }
-/* 滑动期间锁住网格高度、防止两屏横移产生横向滚动条 */
+/* 滑动期间锁住网格高度、让「屏」保持可定位上下文。
+   不再 overflow:hidden：屏已铺满整窗（body 的 overflow-x:hidden 负责裁掉越界部分），
+   否则全宽滑动内容会被网格裁成「边框内移动」，而非相册式整屏滑切。 */
 .cards-grid.card-slide-on {
     position: relative;
-    overflow: hidden;
 }
 
 /* 全局重置 */

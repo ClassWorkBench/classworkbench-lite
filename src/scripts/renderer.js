@@ -542,8 +542,9 @@
             const newH = newLayer.scrollHeight;
             grid.style.height = Math.max(oldH, newH) + 'px';
 
-            // 整屏宽度作为位移量：保证「屏」作为一个整体完全移出/移入可视区域
-            const pix = grid.clientWidth;
+            // 整屏宽度作为位移量：屏已铺满整窗，按「屏宽」平移可让新旧屏完全移出/移入可视区域
+            //（相册式整屏滑切）；若只按网格宽平移，旧屏会停在留白里露一截、新屏也从留白内起步。
+            const pix = oldLayer.offsetWidth;
             const reduced = !!state.settings.reduceAnimation;
 
             // 5) 新屏初始先停在目标状态（滑切=目标侧一个整屏宽；减弱=透明即可），不触发过渡
