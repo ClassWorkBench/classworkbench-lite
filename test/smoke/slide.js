@@ -1,3 +1,5 @@
+// 冒烟：滑切动画基线检查（需先启动应用：npm run smoke:app 开启 9222 调试端口）
+// 运行：npm run smoke:slide
 const http = require('http');
 const fs = require('fs');
 const path = require('path');

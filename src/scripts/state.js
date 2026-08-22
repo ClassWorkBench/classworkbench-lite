@@ -91,6 +91,20 @@ const dom = {
     dpNext: () => $('dpNext'),
 };
 
+// ---- 状态变更订阅：key -> [fn(value, extra)] ----
+// 目前用于 currentViewDate 的「单一渲染入口」：渲染器订阅后，
+// 调用方只需 state.setViewDate(date, { slide|animate })，不再各自手动触发渲染。
+// 直接给 setter 赋值（state.currentViewDate = x）不触发通知，保持旧行为。
+const stateListeners = {};
+function notifyState(key, value, extra) {
+    const ls = stateListeners[key];
+    if (!ls) return;
+    for (const fn of ls) {
+        try { fn(value, extra); }
+        catch (e) { console.error('[state] 变更回调异常:', key, e); }
+    }
+}
+
 window.AppState = {
     get homeworks() { return homeworks; },
     set homeworks(v) { homeworks = v; },
@@ -101,4 +115,22 @@ window.AppState = {
     get settings() { return settings; },
     set settings(v) { settings = v; },
     dom,
+
+    // 变更视图日期：集中入口，统一触发订阅（渲染器据此渲染），
+    // opts：{ slide: ±1 } 用滑切动画；{ animate: true } 用渐变动画；否则默认重渲染
+    setViewDate(date, opts = {}) {
+        currentViewDate = date;
+        notifyState('currentViewDate', date, opts);
+    },
+
+    // 订阅状态变更；返回取消订阅函数
+    onChange(key, fn) {
+        (stateListeners[key] || (stateListeners[key] = [])).push(fn);
+        return () => {
+            const a = stateListeners[key];
+            if (!a) return;
+            const i = a.indexOf(fn);
+            if (i >= 0) a.splice(i, 1);
+        };
+    },
 };

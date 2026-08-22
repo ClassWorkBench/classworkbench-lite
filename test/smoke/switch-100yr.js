@@ -1,4 +1,5 @@
-// 100 年数据下的切日期压力（不修改数据）
+// 100 年数据下的切日期压力（不修改数据；需先启动应用：npm run smoke:app 开启 9222 调试端口）
+// 运行：npm run smoke:switch-100yr
 const http = require('http');
 const fs = require('fs');
 const path = require('path');

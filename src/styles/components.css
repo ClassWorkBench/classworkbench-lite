@@ -350,7 +350,7 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
 .c-del {
     flex: 0 0 auto;
     max-width: 120px;
-    color: #e64444;
+    color: var(--danger);
 }
 
 /* 进入删除确认态：编辑按钮消失，删除按钮扩大并变红 */
@@ -956,7 +956,7 @@ textarea:hover::-webkit-resizer {
     letter-spacing: 0.3px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
-.dialog .adopt-score.high  { background: linear-gradient(135deg, #4ab87a, #3a9f69); }
+.dialog .adopt-score.high  { background: linear-gradient(135deg, var(--success), var(--success-deep)); }
 .dialog .adopt-score.mid   { background: linear-gradient(135deg, #d9a84a, #c29238); }
 .dialog .adopt-score.low   { background: linear-gradient(135deg, #e17171, #d45a5a); }
 
@@ -1214,7 +1214,7 @@ textarea:hover::-webkit-resizer {
     border: none;
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.06);
-    color: var(--text-muted, #666);
+    color: var(--text-muted);
     font-size: 1.15rem;
     line-height: 1;
     font-weight: 300;
@@ -1984,12 +1984,12 @@ body.reduce-anim .segmented .seg-btn {
 /* 输入校验错误状态 */
 .settings-content .setting-group input.input-error,
 .settings-content .setting-group textarea.input-error {
-    border-color: #e64444;
-    background: rgba(230, 68, 68, 0.05);
+    border-color: var(--danger);
+    background: rgba(var(--danger-rgb), 0.05);
     box-shadow: var(--glow-danger);
 }
 .settings-content .setting-group .field-error-msg {
-    color: #e64444;
+    color: var(--danger);
     font-size: 0.75rem;
     font-weight: 500;
 }
@@ -2046,7 +2046,7 @@ body.reduce-anim .segmented .seg-btn {
     margin-bottom: 4px;
     display: block;
 }
-.kw-column-label.strong { color: #4ab87a; }
+.kw-column-label.strong { color: var(--success); }
 .kw-column-label.weak { color: #d9a84a; }
 .kw-column textarea {
     min-height: 64px;

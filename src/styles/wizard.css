@@ -146,11 +146,11 @@
 }
 
 .wizard-step-dot.done {
-    color: #3a9f69;
+    color: var(--success-deep);
 }
 .wizard-step-dot.done .wizard-step-dot-circle {
-    border-color: #4ab87a;
-    background: #4ab87a;
+    border-color: var(--success);
+    background: var(--success);
     color: #fff;
 }
 

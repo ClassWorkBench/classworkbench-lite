@@ -4,7 +4,7 @@ const path = require('path');
 app.setPath('userData', path.join(process.env.APPDATA, 'classworkbench'));
 app.whenReady().then(async () => {
   const log = { error: console.error, info: () => {}, warn: () => {} };
-  const { createCipherModule } = require('../main/data-cipher');
+  const { createCipherModule } = require('../../main/data-cipher');
   const cipher = createCipherModule({ app, fs, path, log, safeStorage });
   try {
     const raw = fs.readFileSync(path.join(app.getPath('userData'), 'homework-data.enc'), 'utf8');

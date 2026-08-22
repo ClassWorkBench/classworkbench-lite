@@ -9,6 +9,7 @@ window.EMOJI_FILES = {
   "📅": "calendar_color.svg",
   "🗃": "card_file_box_color.svg",
   "✅": "check_mark_button_color.svg",
+  "📋": "clipboard_color.svg",
   "☁": "cloud_color.svg",
   "⛈": "cloud_with_lightning_and_rain_color.svg",
   "🌧": "cloud_with_rain_color.svg",

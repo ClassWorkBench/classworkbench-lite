@@ -70,7 +70,8 @@
                 cardsGrid.classList.add('grid-empty-state');
                 const hint = document.createElement('div');
                 hint.className = 'grid-empty';
-                hint.textContent = '今天还没有作业，点下方学科按钮添加';
+                // 空状态引导：剪贴板 emoji 居中在提示文字上方，整体磨砂玻璃胶囊包裹
+                hint.innerHTML = `<span class="grid-empty-icon" aria-hidden="true">${emoji('📋')}</span><span>今天还没有作业，点下方学科按钮添加</span>`;
                 fragment.appendChild(hint);
             } else {
                 cardsGrid.classList.remove('grid-empty-state');
@@ -362,6 +363,17 @@
             setTimeout(adjustContentPadding, 50);
         },
 
+        // 订阅 currentViewDate 变更：调用方用 state.setViewDate(date, { slide|animate }) 触发，
+        // 渲染在此统一收敛，避免各处手动调 render* 造成状态泄漏
+        bindViewDate() {
+            window.AppState.onChange('currentViewDate', (date, opts) => {
+                if (!opts) return;   // 直接赋值（非 setViewDate）不自动渲染，保持旧行为
+                if (opts.slide) { this.renderAllWithSlide(opts.slide); return; }
+                if (opts.animate) { this.renderAllWithAnimation(); return; }
+                this.renderAll();
+            });
+        },
+
         renderAllWithAnimation() {
             const cardsGrid = state.dom.cardsGrid();
             if (!cardsGrid) { this.renderAll(); return; }
@@ -493,11 +505,19 @@
             this.updateClock();
             prevCardIds = prevPrev;
 
-            // 4) 把新卡片移入绝对定位的「新屏」层（同样带上多列布局），叠在旧屏之上
+            // 4) 把新卡片移入绝对定位的「新屏」层（镜像网格当前布局），叠在旧屏之上
+            //    ⚠️ 不能沿用旧屏的列数：日切换时旧天为空(columns:auto)/新天有卡，沿用会把新卡先排成
+            //    单列再回弹成两列；旧天有卡/新天为空，沿用会把空状态提示塞进多栏裂成多段、毛玻璃分片。
+            //    因此新屏按「渲染后网格的实际布局」取值（多栏列数 + 空状态的 flex 居中）。
             const newLayer = document.createElement('div');
             newLayer.className = 'card-slide-layer';
-            newLayer.style.columnCount = cols;
-            newLayer.style.columnGap = gap;
+            const newCs = getComputedStyle(grid);
+            newLayer.style.columnCount = newCs.columnCount;
+            newLayer.style.columnGap = newCs.columnGap;
+            newLayer.style.display = newCs.display;
+            newLayer.style.alignItems = newCs.alignItems;
+            newLayer.style.justifyContent = newCs.justifyContent;
+            newLayer.style.minHeight = newCs.minHeight;
             grid.querySelectorAll(':scope > :not(.card-slide-layer)').forEach((c) => newLayer.appendChild(c));
             grid.appendChild(newLayer);
 

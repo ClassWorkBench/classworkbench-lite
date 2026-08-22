@@ -11,8 +11,8 @@ function fmt(d) {
 
 app.whenReady().then(async () => {
     const log = { error: console.error, info: console.log, warn: console.warn };
-    const { createCipherModule } = require('../main/data-cipher');
-    const { createDataStore } = require('../main/data-store');
+    const { createCipherModule } = require('../../main/data-cipher');
+    const { createDataStore } = require('../../main/data-store');
     const cipher = createCipherModule({ app, fs, path, log, safeStorage });
     const store = createDataStore({ app, fs, path, log, cipher, defaults: {} });
     store.load();

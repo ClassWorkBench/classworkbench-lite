@@ -57,6 +57,15 @@
             }
         }
 
+        // 注册表（registry.js）若记录了模块加载问题，启动时明确列出，便于定位
+        if (window.AppRegistry && window.AppRegistry.errors && window.AppRegistry.errors.length) {
+            console.error('[启动] 模块加载校验未通过，可能存在功能缺失:', window.AppRegistry.errors);
+        }
+
+        // 视图日期变更统一收敛：调用方用 state.setViewDate(date, { slide|animate }) 触发渲染，
+        // 渲染器在此订阅，避免各处手动调用 render* 造成状态泄漏
+        Renderer.bindViewDate();
+
         await loadAll();
         // 视觉与性能：模糊降级 + 减弱动画（含系统透明/减动效同步）由 AppStyling 统一应用
         initStyling();

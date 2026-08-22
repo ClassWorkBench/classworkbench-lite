@@ -1,3 +1,5 @@
+// 压测：3 个月数据 + 归档边界 + 快速连点/滑切（需先启动应用：npm run smoke:app 开启 9222 调试端口）
+// 运行：npm run smoke:stress-3mo
 const http = require('http');
 const fs = require('fs');
 const path = require('path');

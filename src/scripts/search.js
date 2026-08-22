@@ -167,10 +167,10 @@
     }
 
     function goToDate(date) {
-        if (date) state.currentViewDate = date;
         restore();
         if (window.AppMoreMenu && window.AppMoreMenu.closeMenu) window.AppMoreMenu.closeMenu();
-        if (window.Renderer) window.Renderer.renderAllWithAnimation();
+        // 统一走 state.setViewDate：渲染由订阅方（Renderer.bindViewDate）收敛触发
+        if (date) state.setViewDate(date, { animate: true });
     }
 
     function highlight(content, kw) {

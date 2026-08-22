@@ -101,41 +101,7 @@
     <!-- 模态容器 -->
     <div id="modalRoot"></div>
 
-    <!-- 脚本按依赖顺序加载 -->
-    <!-- 脚本按依赖顺序加载，请勿调整顺序：config → state → utils → storage → styling → weather → background → layout → renderer → modal → dialogs → archive-renderer → homework-engine → qq-pending-dialog → settings → wizard → more-menu → datepicker → main -->
-    <script src="emoji/emoji-map.js"></script>
-    <script src="src/scripts/config.js"></script>
-    <script src="src/scripts/state.js"></script>
-    <script src="src/scripts/utils.js"></script>
-    <script src="src/scripts/storage.js"></script>
-    <script src="src/scripts/styling.js"></script>
-    <script src="src/scripts/weather.js"></script>
-    <script src="src/scripts/background.js"></script>
-    <script src="src/scripts/layout.js"></script>
-    <script src="src/scripts/renderer.js"></script>
-    <script src="src/scripts/modal.js"></script>
-    <script src="src/scripts/search.js"></script>
-    <script src="src/scripts/dialogs.js"></script>
-    <script src="src/scripts/color-picker.js"></script>
-    <script src="src/scripts/archive-renderer.js"></script>
-    <script src="src/scripts/homework-engine.js"></script>
-    <script src="src/scripts/qq-pending-dialog.js"></script>
-    <script src="src/scripts/settings/general.js"></script>
-    <script src="src/scripts/settings/weather.js"></script>
-    <script src="src/scripts/settings/personal.js"></script>
-    <script src="src/scripts/settings/accessibility.js"></script>
-    <script src="src/scripts/settings/subjects.js"></script>
-    <script src="src/scripts/settings/qq.js"></script>
-    <script src="src/scripts/settings/data.js"></script>
-    <script src="src/scripts/settings/about.js"></script>
-    <script src="src/scripts/settings/nav.js"></script>
-    <script src="src/scripts/backup.js"></script>
-    <script src="src/scripts/settings.js"></script>
-    <script src="src/scripts/wizard.js"></script>
-    <script src="src/scripts/floating-mode.js"></script>
-    <script src="src/scripts/more-menu.js"></script>
-    <script src="src/scripts/window-controls.js"></script>
-    <script src="src/scripts/datepicker.js"></script>
-    <script src="src/scripts/main.js"></script>
+    <!-- 渲染层模块统一由注册表按依赖顺序加载并校验（src/scripts/registry.js） -->
+    <script src="src/scripts/registry.js"></script>
 </body>
 </html>

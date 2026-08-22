@@ -5,7 +5,6 @@
 
 (function () {
     const state = window.AppState;
-    const Renderer = window.Renderer;
 
     let arrowsVisible = false;
 
@@ -48,8 +47,7 @@
             return;
         }
 
-        state.currentViewDate = newDateStr;
-        Renderer.renderAllWithSlide(delta);
+        state.setViewDate(newDateStr, { slide: delta });
         updateArrowState();
     }
 

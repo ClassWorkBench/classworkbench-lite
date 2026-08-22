@@ -1,4 +1,5 @@
-// 验证 100 年数据：触发应用重载（扫描归档）+ 获取归档月份数 + 渲染检查
+// 验证 100 年数据：触发应用重载（扫描归档）+ 获取归档月份数 + 渲染检查（需先启动应用：npm run smoke:app 开启 9222 调试端口）
+// 运行：npm run smoke:verify-100yr
 const http = require('http');
 const fs = require('fs');
 const path = require('path');

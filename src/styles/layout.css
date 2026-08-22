@@ -156,13 +156,49 @@ body:has(.bg-layer.loaded) .bg-mask {
     min-height: 45vh;
 }
 .grid-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 26px 44px 30px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px) saturate(1.15);
+    -webkit-backdrop-filter: blur(16px) saturate(1.15);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-capsule);
+    box-shadow: var(--card-shadow);
     color: var(--text-muted);
     font-size: 0.95rem;
     line-height: 1.7;
     text-align: center;
-    opacity: 0.85;
     user-select: none;
     -webkit-user-select: none;
+    /* 上下浮动：整体胶囊轻轻上下漂浮，给空状态一点呼吸感 */
+    animation: emptyFloat 3.2s ease-in-out infinite;
+}
+/* 剪贴板图标：白底圆盘衬底，与磨砂胶囊同系玻璃质感 */
+.grid-empty-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.55);
+    box-shadow: var(--card-shadow);
+}
+.grid-empty-icon img.emoji {
+    width: 46px;
+    height: 46px;
+    vertical-align: 0;
+}
+@keyframes emptyFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+}
+/* 减弱动画：去掉上下浮动，只留静态引导 */
+body.reduce-anim .grid-empty {
+    animation: none;
 }
 
 /* 底栏胶囊 */

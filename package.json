@@ -7,7 +7,18 @@
   "scripts": {
     "dev": "electron .",
     "build": "electron-builder",
-    "check:emoji": "node tools/check-emoji.mjs"
+    "check:emoji": "node tools/check-emoji.mjs",
+    "test": "node test/check-wiring.mjs",
+    "test:all": "npm test && npm run check:emoji",
+    "smoke:app": "electron . --remote-debugging-port=9222",
+    "smoke:inspect": "electron test/smoke/inspect-data.js",
+    "smoke:fill-active": "electron test/smoke/fill-active.js",
+    "smoke:fill-100yr": "electron test/smoke/fill-100yr.js",
+    "smoke:slide": "node test/smoke/slide.js",
+    "smoke:stress": "node test/smoke/stress.js",
+    "smoke:stress-3mo": "node test/smoke/stress-3mo.js",
+    "smoke:switch-100yr": "node test/smoke/switch-100yr.js",
+    "smoke:verify-100yr": "node test/smoke/verify-100yr.js"
   },
   "build": {
     "appId": "com.classworkbench.app",

@@ -2,7 +2,7 @@
 // fill-100yr.js — 压力测试数据生成：从今天往前 100 年，每天 12~16 条作业
 // 活跃部分（最近 3 个月）保留现有数据；归档部分（3 个月前 → 100 年前）
 // 按月写入 archives/YYYY-MM.json（AES-256-GCM 加密，tmp+rename 原子写）。
-// 运行：electron .smoke/fill-100yr.js（需要真实 safeStorage）
+// 运行：npm run smoke:fill-100yr（需要真实 safeStorage）
 // ============================================
 
 const { app, safeStorage } = require('electron');
@@ -31,8 +31,8 @@ function longContent(name, i) {
 
 app.whenReady().then(async () => {
     const log = { error: console.error, info: console.log, warn: console.warn };
-    const { createCipherModule } = require('../main/data-cipher');
-    const { createDataStore } = require('../main/data-store');
+    const { createCipherModule } = require('../../main/data-cipher');
+    const { createDataStore } = require('../../main/data-store');
     const cipher = createCipherModule({ app, fs, path, log, safeStorage });
     const store = createDataStore({ app, fs, path, log, cipher, defaults: {} });
     store.load();

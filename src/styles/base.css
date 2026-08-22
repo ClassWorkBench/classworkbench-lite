@@ -31,6 +31,12 @@
     /* 焦点环独立变量：中性蓝，不抢 accent 的"主要操作"语义 */
     --focus-ring: #3b82f6;
     --focus-ring-rgb: 59, 130, 246;
+    /* 语义色：危险 / 成功（与下发光定义共用同一 rgb 分量，避免散落魔数） */
+    --danger: #e64444;
+    --danger-rgb: 230, 68, 68;
+    --success: #4ab87a;
+    --success-rgb: 74, 184, 122;
+    --success-deep: #3a9f69;
     /* 柔和发光（多层渐变模拟自然光衰减）—— 内层窄亮、中层过渡、外层淡散 */
     --glow-focus: 0 0 0 1px rgba(var(--focus-ring-rgb), 0.55),
                  0 0 4px 1px rgba(var(--focus-ring-rgb), 0.22),
@@ -41,12 +47,12 @@
     --glow-accent-strong: 0 0 0 1px rgba(var(--accent-rgb), 0.50),
                          0 0 8px 2px rgba(var(--accent-rgb), 0.28),
                          0 0 18px 4px rgba(var(--accent-rgb), 0.15);
-    --glow-danger: 0 0 0 1px rgba(230, 68, 68, 0.45),
-                   0 0 5px 1px rgba(230, 68, 68, 0.20),
-                   0 0 12px 2px rgba(230, 68, 68, 0.10);
-    --glow-success: 0 0 0 1px rgba(74, 184, 122, 0.45),
-                    0 0 5px 1px rgba(74, 184, 122, 0.20),
-                    0 0 12px 2px rgba(74, 184, 122, 0.10);
+    --glow-danger: 0 0 0 1px rgba(var(--danger-rgb), 0.45),
+                   0 0 5px 1px rgba(var(--danger-rgb), 0.20),
+                   0 0 12px 2px rgba(var(--danger-rgb), 0.10);
+    --glow-success: 0 0 0 1px rgba(var(--success-rgb), 0.45),
+                    0 0 5px 1px rgba(var(--success-rgb), 0.20),
+                    0 0 12px 2px rgba(var(--success-rgb), 0.10);
     --card-padding: 20px 20px 16px;
     --mask-opacity: 0.15;
     --scrollbar-thumb: #a8a8b0;
