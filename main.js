@@ -11,7 +11,7 @@
 //   main/ipc.js             — 32 个 IPC 胶水层 handler（无业务）
 // ============================================
 
-const { app, BrowserWindow, ipcMain, Tray, Menu, net, clipboard, shell, dialog, screen, safeStorage } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Tray, Menu, net, clipboard, shell, dialog, screen, session, safeStorage, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -27,6 +27,7 @@ const { createAutoLaunchModule } = require('./main/auto-launch');
 const { createSidecarModule } = require('./main/sidecar');
 const { createBackupModule } = require('./main/backup');
 const { createFloatingModule } = require('./main/floating');
+const { createSolveModule } = require('./main/solve');
 const { createCipherModule } = require('./main/data-cipher');
 const { createDataStore } = require('./main/data-store');
 const { createWindowModule } = require('./main/window');
@@ -43,6 +44,7 @@ app.commandLine.appendSwitch('enable-features', 'BackForwardCache:memory_limit_i
 app.commandLine.appendSwitch('memory-pressure-offloading');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 // ---- 全局异常捕获 ----
 process.on('uncaughtException', (err) => log.error('[uncaughtException]', err));
@@ -70,6 +72,7 @@ if (!gotTheLock) {
     let sidecar = null;
     let backup = null;
     let floating = null;
+    let solve = null;
     let cipher = null;
     let store = null;
     let windowMod = null;
@@ -133,6 +136,12 @@ if (!gotTheLock) {
         store.load();   // 旧明文自动迁移 + 损坏自愈
         getQqConfig._store = store;
 
+        // ---- 摄像头/媒体权限（拍照搜题）：仅放行 media，其余网页权限一律拒绝 ----
+        session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+            callback(permission === 'media');
+        });
+        session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'media');
+
         try {
             const atomically = await import('atomically');
             atomicWriteRef.value = atomically.writeFileSync;
@@ -188,6 +197,13 @@ if (!gotTheLock) {
             getSettings: () => store.get('settings') || {}
         });
 
+        solve = createSolveModule({
+            BrowserWindow, WebContentsView, screen, session, clipboard, nativeImage,
+            app, path, log,
+            assetsDir: __dirname,
+            getMainWindow: () => mainWindowRef.value
+        });
+
         // 协议/文档在线同步（三级兜底 + SHA-256 比对 + 本地缓存），不阻塞启动
         docsSync = createDocsSync({ app, fs, path, crypto, net, log });
 
@@ -204,7 +220,7 @@ if (!gotTheLock) {
         // ---- IPC 胶水层 ----
         setupIpc({
             ipcMain, clipboard, shell, log, store,
-            archive, bg, autoLaunch, sidecar, backup, floating, cipher, docsSync,
+            archive, bg, autoLaunch, sidecar, backup, floating, solve, cipher, docsSync,
             qweather, updater,
             getMainWindow: () => mainWindowRef.value,
             getQqConfig,
@@ -222,6 +238,13 @@ if (!gotTheLock) {
 
         windowMod.createWindow();
         windowMod.createTray();
+
+        // 启动 3 秒后后台预热 AI 搜题页面（豆包/DeepSeek 常驻加载，默认开启可在设置关闭）
+        setTimeout(() => {
+            const s = store.get('settings') || {};
+            const sol = s.solve || {};
+            if (sol.prewarm === true && solve) solve.warmup();
+        }, 3000);
 
         // 后台异步同步协议/文档（不阻塞界面）；变了则通知渲染层展示最新/重弹协议
         docsSync.sync().then((summary) => {

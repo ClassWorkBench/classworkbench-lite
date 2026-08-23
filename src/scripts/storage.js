@@ -90,6 +90,15 @@
             const DEFAULT_WEAK = ['做', '写', '复习', '预习', '练习', '答案'];
             if (!Array.isArray(q.keywords.strong)) q.keywords.strong = DEFAULT_STRONG;
             if (!Array.isArray(q.keywords.weak)) q.keywords.weak = DEFAULT_WEAK;
+            // 拍照搜题配置兜底（旧 settings 无该字段时填充默认值）
+            if (!state.settings.solve) state.settings.solve = {};
+            const sol = state.settings.solve;
+            if (sol.cameraId === undefined) sol.cameraId = '';
+            if (sol.flip === undefined) sol.flip = false;
+            if (sol.autoScan === undefined) sol.autoScan = true;
+            if (sol.sensitivity === undefined) sol.sensitivity = 2;
+            if (sol.resolution === undefined) sol.resolution = '720';
+            if (sol.prewarm === undefined) sol.prewarm = false;
             // ---- Schema 版本管理 ----
             if (!state.settings.schemaVersion) state.settings.schemaVersion = 1;
             // ---- 首次使用向导兜底 ----

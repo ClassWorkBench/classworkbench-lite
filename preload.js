@@ -133,4 +133,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
             return () => ipcRenderer.removeListener('qq:error', h);
         },
     },
+
+    // ---- 拍照搜题（半自动：抓拍图 → 剪贴板 → 内嵌 AI 搜题窗口粘贴，支持 provider） ----
+    solve: {
+        // 打开目标 AI 服务窗口并把图片写入剪贴板、自动粘贴到输入框；返回 { ok, error?, pasted? }
+        open: (payload) => ipcRenderer.invoke('solve:open', payload),
+        // 预热：后台加载「上次使用的服务」页面，缩短首次搜题等待（拍照表单打开时调用）
+        warmup: () => ipcRenderer.invoke('solve:warmup'),
+        // 释放：表单取消且窗口从未显示时，立即销毁预热窗口还内存
+        release: () => ipcRenderer.invoke('solve:release'),
+        // 关闭搜题窗口
+        close: () => ipcRenderer.invoke('solve:close'),
+    },
 });

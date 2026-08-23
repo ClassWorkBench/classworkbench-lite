@@ -95,8 +95,19 @@
         const floatBtn = document.getElementById('floatModeBtn');
         const settingsBtn = document.getElementById('openSettingsBtn');
         const searchBtn = document.getElementById('searchHomeworkBtn');
+        const solveBtn = document.getElementById('solveSearchBtn');
 
         if (exportBtn) exportBtn.addEventListener('click', copyLayoutImage);
+        if (solveBtn) {
+            solveBtn.addEventListener('click', () => {
+                closeMenu();
+                if (window.AppSolve && typeof window.AppSolve.open === 'function') {
+                    window.AppSolve.open();
+                } else {
+                    toast('拍照搜题模块未加载');
+                }
+            });
+        }
         if (floatBtn) {
             floatBtn.addEventListener('click', () => {
                 closeMenu();

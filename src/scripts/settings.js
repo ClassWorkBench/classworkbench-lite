@@ -92,6 +92,10 @@
                         <span class="nav-icon">${emoji('📨')}</span>
                         <span class="nav-label">QQ监听</span>
                     </div>
+                    <div class="settings-nav-item" data-panel="solve">
+                        <span class="nav-icon"><img class="emoji" src="emoji/camera_color.svg" alt="📷"></span>
+                        <span class="nav-label">拍照搜题</span>
+                    </div>
                     <div class="settings-nav-item" data-panel="data">
                         <span class="nav-icon">${emoji('🗃️')}</span>
                         <span class="nav-label">数据管理</span>
@@ -111,6 +115,7 @@
                     ${M.accessibility.render(ctx)}
                     ${M.subjects.render(ctx)}
                     ${M.qq.render(ctx)}
+                    ${M.solve.render(ctx)}
                     ${M.data.render(ctx)}
                     ${M.about.render(ctx)}
                 </div>
@@ -136,6 +141,7 @@
         M.accessibility.bind(ctx);
         M.subjects.bind(ctx);
         M.qq.bind(ctx);
+        M.solve.bind(ctx);
         M.data.bind(ctx);
         M.about.bind(ctx);
     }

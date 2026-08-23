@@ -18,6 +18,7 @@
  * @param {object} opts.sidecar     - Sidecar 模块
  * @param {object} opts.backup      - 备份/恢复模块（exportBackup / importBackup / createSnapshot / collectArchives / restoreArchives）
  * @param {object} opts.floating    - 浮窗模块（enter / exit / cardReady / getCardForWebContents / closeCard / closeAfterFade）
+ * @param {object} opts.solve       - 拍照搜题模块（openDoubao / closeWindow / minimizeWindow）
  * @param {object} opts.cipher      - 数据加密模块（status 供设置面板展示）
  * @param {object} opts.docsSync   - 协议/文档在线同步模块（readDoc / readBundled / parseVersion / sync）
  * @param {object} opts.qweather   - 和风天气 JWT 客户端（get / generateToken）
@@ -27,7 +28,7 @@
  */
 function setupIpc({
     ipcMain, clipboard, shell, log, store,
-    archive, bg, autoLaunch, sidecar, backup, floating, cipher, docsSync, qweather, updater,
+    archive, bg, autoLaunch, sidecar, backup, floating, solve, cipher, docsSync, qweather, updater,
     getMainWindow, getQqConfig, fs, path, app
 }) {
 
@@ -113,6 +114,13 @@ function setupIpc({
     ipcMain.handle('float:refade', (event) => floating.refadeCard(event.sender.id));
 
     // float:setHoverMode / float:dockPreview / float:dockUnpreview 已废弃（轮询改 mouseenter，无 UI 调用），对应实现已从 floating 模块移除
+
+    // ===== 拍照搜题（半自动：内嵌 AI 搜题窗口） =====
+    ipcMain.handle('solve:open', (_event, payload) => solve.openDoubao(payload || {}));
+    ipcMain.handle('solve:warmup', () => { solve.warmup(); return { success: true }; });
+    ipcMain.handle('solve:release', () => { solve.releaseWindow(); return { success: true }; });
+    ipcMain.handle('solve:close', () => { solve.closeWindow(); return { success: true }; });
+    ipcMain.handle('solve:minimize', () => { solve.minimizeWindow(); return { success: true }; });
 
     // ===== 归档（只读） =====
     ipcMain.handle('archive:getMonths', () => archive.getArchiveMonths());

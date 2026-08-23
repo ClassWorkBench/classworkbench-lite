@@ -57,6 +57,15 @@ let settings = {
         },
         // 待确认作业候选队列
         pendingCandidates: []
+    },
+    // 拍照搜题配置
+    solve: {
+        cameraId: '',                  // 默认摄像头 deviceId（空 = 系统默认）
+        flip: false,                   // 画面镜像翻转（展台常需水平翻转）
+        autoScan: true,                // 扫描仪式自动抓拍（放稳后自动拍照）
+        sensitivity: 2,                // 自动抓拍灵敏度 1=低 2=中 3=高
+        resolution: '720',             // 摄像头启动分辨率 640=流畅 720=标准 1080=高清
+        prewarm: false                 // 应用启动后后台预加载搜题页面（默认关：省内存；开：换速度）
     }
 };
 

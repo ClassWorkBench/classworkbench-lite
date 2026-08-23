@@ -3356,3 +3356,124 @@ body.reduce-anim .cp-pop {
     outline: none;
 }
 .sm-input::placeholder { color: var(--text-muted); opacity: 0.75; }
+
+/* ===== 拍照搜题（弹出式表单：展台预览 + 扫描仪式自动抓拍） ===== */
+.solve-dialog { max-width: 560px; }
+.solve-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.solve-head-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    background: rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.solve-head-icon img.emoji { width: 20px; height: 20px; }
+.solve-head-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.solve-title { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.2px; }
+.solve-sub { font-size: 0.78rem; opacity: 0.6; }
+.solve-preview {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #0d1117;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1.5px solid rgba(0, 0, 0, 0.12);
+}
+.solve-preview video,
+.solve-shot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #0d1117;
+}
+.solve-preview video.flip { transform: scaleX(-1); }
+.solve-scan {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.solve-scan::before,
+.solve-scan::after {
+    content: "";
+    position: absolute;
+    width: 34px;
+    height: 34px;
+    border: 3px solid rgba(255, 255, 255, 0.85);
+}
+.solve-scan::before {
+    top: 12px;
+    left: 12px;
+    border-right: none;
+    border-bottom: none;
+    border-top-left-radius: 10px;
+}
+.solve-scan::after {
+    bottom: 12px;
+    right: 12px;
+    border-left: none;
+    border-top: none;
+    border-bottom-right-radius: 10px;
+}
+.solve-scan-line {
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: 0;
+    height: 3px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, transparent, rgba(64, 168, 255, 0.9), transparent);
+    box-shadow: 0 0 12px rgba(64, 168, 255, 0.7);
+    animation: solveScanMove 2.2s ease-in-out infinite;
+}
+.solve-scan.hidden { display: none; }
+@keyframes solveScanMove {
+    0%   { top: 6%; opacity: 0; }
+    12%  { opacity: 1; }
+    88%  { opacity: 1; }
+    100% { top: 94%; opacity: 0; }
+}
+.solve-status {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    text-align: center;
+    min-height: 1.2em;
+}
+.solve-cam-row { display: flex; gap: 8px; }
+.solve-cam-row .input-flex { flex: 1; min-width: 0; }
+.solve-opts {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.solve-opt {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.03);
+    border: 1.5px solid rgba(0, 0, 0, 0.06);
+    border-radius: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+}
+.solve-opt input { accent-color: var(--accent); }
+.solve-btns { margin-top: 2px; }
+.solve-btns [hidden] { display: none !important; }
