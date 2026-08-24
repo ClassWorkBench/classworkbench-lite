@@ -14,18 +14,17 @@ window.SettingsModules.solve = {
                     <div class="settings-panel" id="panel-solve">
                         <div class="panel-header">
                             <h3>拍照搜题</h3>
-                            <p class="panel-desc">展台 / 摄像头自动扫描题目，图片粘贴到豆包或 DeepSeek 网页版搜索（半自动）</p>
+                            <p class="panel-desc">展台 / 摄像头自动扫描题目，粘贴到豆包或 DeepSeek 网页版搜索</p>
                         </div>
                         <div class="panel-body">
                             <div class="setting-group">
-                                <label for="solveCameraSelect">摄像头（希沃展台等）</label>
+                                <label for="solveCameraSelect">展台 / 摄像头</label>
                                 <div class="setting-row">
                                     <select id="solveCameraSelect" class="input-flex" aria-label="选择摄像头">
                                         <option value="">正在扫描摄像头…</option>
                                     </select>
                                     <button class="btn" id="solveCameraRefresh" type="button" aria-label="刷新摄像头列表">刷新</button>
                                 </div>
-                                <small>若列表为空，请先在「更多 → 拍照搜题」中授权一次摄像头。</small>
                             </div>
                             <div class="setting-group">
                                 <label>画面方向（展台旋转 / 镜像）</label>
@@ -43,14 +42,12 @@ window.SettingsModules.solve = {
                                         <div class="toggle-row">
                                             <div class="toggle-row-text">
                                                 <span class="toggle-row-title">水平镜像</span>
-                                                <span class="toggle-row-desc">左右颠倒时开启</span>
                                             </div>
                                             <label class="setting-toggle">
                                                 <input type="checkbox" id="solveMirrorToggle" ${sol.flip ? 'checked' : ''} aria-label="水平镜像">
                                                 <span class="toggle-slider"></span>
                                             </label>
                                         </div>
-                                        <small class="orient-tip">实时摄像头已在左侧，旋转 / 镜像即时生效（进入本页自动开启）。</small>
                                     </div>
                                 </div>
                             </div>
@@ -90,17 +87,13 @@ window.SettingsModules.solve = {
                                 <div class="toggle-row">
                                     <div class="toggle-row-text">
                                         <span class="toggle-row-title">启动时预加载搜题页面</span>
-                                        <span class="toggle-row-desc">应用启动后后台预加载上次使用的搜题页面（默认关闭，省内存）</span>
+                                        <span class="toggle-row-desc">应用启动后后台预加载上次使用的搜题页面</span>
                                     </div>
                                     <label class="setting-toggle">
                                         <input type="checkbox" id="solvePrewarmToggle" ${sol.prewarm === true ? 'checked' : ''} aria-label="启动时预加载搜题页面">
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
-                            </div>
-                            <div class="setting-group">
-                                <button class="btn primary" id="solveOpenBtn" type="button">打开拍照搜题</button>
-                                <small>在底栏「更多」菜单中也有「拍照搜题」入口。</small>
                             </div>
                         </div>
                     </div>
@@ -112,20 +105,36 @@ window.SettingsModules.solve = {
         const sol = settings.solve || (settings.solve = {});
         const api = window.electronAPI;
 
-        async function refreshCameraList(select) {
-            if (!select) return;
-            select.innerHTML = '<option value="">正在扫描摄像头…</option>';
-            let devices = [];
+        async function listVideoDevices() {
             try {
                 if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-                    devices = (await navigator.mediaDevices.enumerateDevices())
+                    return (await navigator.mediaDevices.enumerateDevices())
                         .filter(d => d.kind === 'videoinput');
                 }
             } catch (e) {
                 toast('读取摄像头列表失败');
             }
+            return [];
+        }
+        // 枚举结果受权限门控：未授权时可能为空。这里自动触发一次 getUserMedia
+        // 拿到媒体权限后立即释放，再重新枚举即可得到完整设备列表，无需用户手动操作。
+        async function ensureMediaPermission() {
+            try {
+                const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                s.getTracks().forEach(t => t.stop());
+            } catch (_) { /* 无摄像头或已拒绝：交给后续空态处理 */ }
+        }
+        async function refreshCameraList(select) {
+            if (!select) return;
+            select.innerHTML = '<option value="">正在扫描摄像头…</option>';
+            let devices = await listVideoDevices();
             if (!devices.length) {
-                select.innerHTML = '<option value="">未找到摄像头（请先授权）</option>';
+                // 权限受限导致列表为空 → 自动授权后重试
+                await ensureMediaPermission();
+                devices = await listVideoDevices();
+            }
+            if (!devices.length) {
+                select.innerHTML = '<option value="">未找到摄像头</option>';
                 return;
             }
             select.innerHTML = devices.map(d =>
@@ -312,17 +321,6 @@ window.SettingsModules.solve = {
                 await saveSettings();
                 if (sol.prewarm && api && typeof api.solve.warmup === 'function') {
                     api.solve.warmup().catch(() => {});
-                }
-            });
-        }
-
-        const openBtn = document.getElementById('solveOpenBtn');
-        if (openBtn) {
-            openBtn.addEventListener('click', () => {
-                if (window.AppSolve && typeof window.AppSolve.open === 'function') {
-                    window.AppSolve.open();
-                } else {
-                    toast('拍照搜题模块未加载');
                 }
             });
         }

@@ -3511,5 +3511,4 @@ body.reduce-anim .cp-pop {
 .orient-preview.is-loading::after { opacity: 1; }
 .orient-controls { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .orient-controls .toggle-row { margin-top: 0; width: 100%; }
-.orient-tip { opacity: .75; }
 body.reduce-anim .orient-preview video { transition: none; }

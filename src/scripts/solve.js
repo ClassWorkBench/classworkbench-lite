@@ -41,7 +41,7 @@
                         <span class="solve-head-icon"><img class="emoji" src="emoji/camera_color.svg" alt="📷"></span>
                         <div class="solve-head-text">
                             <div class="solve-title">拍照搜题</div>
-                            <div class="solve-sub">展台自动扫描 → 粘贴到 AI 搜题（半自动）</div>
+                            <div class="solve-sub">展台自动扫描 → 粘贴到 AI 搜题</div>
                         </div>
                     </div>
                     <div class="solve-preview" id="solvePreview">
