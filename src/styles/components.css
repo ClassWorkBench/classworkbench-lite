@@ -1568,10 +1568,13 @@ body.reduce-anim .segmented .seg-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.25s var(--transition-smooth), transform 0.2s var(--transition-spring), background 0.2s, width 0.25s var(--transition-smooth), margin 0.25s var(--transition-smooth);
+    /* visibility 带上 0.25s 延迟：展开时立即可聚焦；收起时动画播完才隐藏（隐藏即移出 Tab 顺序），
+       不透明/塌缩的同时按原生行为收焦，杜绝"折叠态仍可 Tab 聚焦 → 幽灵切换日期" */
+    transition: opacity 0.25s var(--transition-smooth), transform 0.2s var(--transition-spring), background 0.2s, width 0.25s var(--transition-smooth), margin 0.25s var(--transition-smooth), visibility 0s linear 0.25s;
     font-weight: 300;
     flex-shrink: 0;
     opacity: 0;
+    visibility: hidden;   /* 折叠态不可见且不可聚焦（移出 Tab 顺序） */
     padding: 0;
     margin: 0 -4px;
     overflow: hidden;
@@ -1579,6 +1582,8 @@ body.reduce-anim .segmented .seg-btn {
 }
 .bottom-capsule.date-active .dp-arrow {
     opacity: 1;
+    visibility: visible;   /* 展开态恢复可见 + 可聚焦（visibility 0s 立即生效，淡入不被吞） */
+    transition: opacity 0.25s var(--transition-smooth), transform 0.2s var(--transition-spring), background 0.2s, width 0.25s var(--transition-smooth), margin 0.25s var(--transition-smooth), visibility 0s;
     width: 32px;
     padding: 0;
     margin: 0;
@@ -2547,6 +2552,7 @@ body.reduce-anim .segmented .seg-btn {
 .archive-bottom .dp-arrow {
     width: 0;
     opacity: 0;
+    visibility: hidden;    /* 折叠态同底栏规则：不可见且移出 Tab 顺序，杜绝幽灵聚焦 */
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -2556,11 +2562,19 @@ body.reduce-anim .segmented .seg-btn {
                 width 0.3s var(--transition-smooth),
                 padding 0.3s var(--transition-smooth),
                 margin 0.3s var(--transition-smooth),
-                border-width 0.3s var(--transition-smooth);
+                border-width 0.3s var(--transition-smooth),
+                visibility 0s linear 0.3s;
 }
 .archive-bottom.date-active .dp-arrow {
     width: 32px;
     opacity: 1;
+    visibility: visible;    /* 展开态立即可见 + 可聚焦（visibility 0s 立即生效） */
+    transition: opacity 0.3s var(--transition-smooth),
+                width 0.3s var(--transition-smooth),
+                padding 0.3s var(--transition-smooth),
+                margin 0.3s var(--transition-smooth),
+                border-width 0.3s var(--transition-smooth),
+                visibility 0s;
     padding: 0;
     margin: 0 2px;
     border-width: 1px;
