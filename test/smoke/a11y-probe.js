@@ -192,6 +192,32 @@ const check = (name, cond, detail = '') => {
         const ringOk = ring.style === 'solid' && /^rgb\(45, 62, 142\)$/i.test(ring.color);
         check('焦点描边为主题色 accent(45,62,142)', ringOk, `(got ${ring.style} ${ring.color} on ${ring.tag})`);
 
+        console.log('\n[6] 设置-个性化 内容区 Tab 聚焦可自动滚动（美化编号开关在末尾可见）');
+        await cdp.eval(`document.getElementById('openSettingsBtn').click()`);
+        await sleep(550);
+        await cdp.eval(`document.querySelector('.settings-nav-item[data-panel="personal"]').click()`);
+        await sleep(300);
+        const scr = JSON.parse(await cdp.eval(`JSON.stringify((function(){
+            var sc = document.querySelector('.settings-content');
+            var chk = document.getElementById('beautifyNumberToggle');
+            if (!sc || !chk) return { err: 'missing' };
+            sc.scrollTop = 0;            // 先置顶，验证聚焦确实触发滚动
+            chk.focus();
+            var cr = chk.getBoundingClientRect();
+            var sr = sc.getBoundingClientRect();
+            return {
+                box: { w: cr.width, h: cr.height },
+                scrollTop: sc.scrollTop,
+                scrolled: sc.scrollTop > 0,
+                visible: cr.top >= sr.top - 1 && cr.bottom <= sr.bottom + 1,
+                active: document.activeElement ? document.activeElement.id : ''
+            };
+        })())`));
+        check('美化编号开关拥有真实盒模型(非0尺寸)', !!scr && !!scr.box && scr.box.w > 0 && scr.box.h > 0, `(got ${JSON.stringify(scr && scr.box)})`);
+        check('聚焦美化编号开关后滚动容器自动下滚', !!scr && scr.scrolled === true, `(got scrollTop=${scr && scr.scrollTop})`);
+        check('美化编号开关位于滚动视口内(未被裁切)', !!scr && scr.visible === true);
+        await cdp.key('Escape', 'Escape'); // 关闭设置，避免影响后续/进程退出
+
         const summary = `\n=== a11y 冒烟结果: ${pass} 通过, ${fail} 失败 ===`;
         console.log(summary);
         process.exitCode = fail ? 1 : 0;

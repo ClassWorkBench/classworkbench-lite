@@ -1368,6 +1368,43 @@ textarea:hover::-webkit-resizer {
     font-size: 0.88rem;
     font-weight: 600;
     user-select: none;
+    position: relative; /* 作为隐藏 checkbox 的定位锚点，保证其拥有真实盒模型可被滚动聚焦 */
+}
+.setting-toggle input[type="checkbox"] {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;  /* 与滑块同尺寸：提供真实可聚焦/点击盒，Tab 聚焦时浏览器能定位到下滚 */
+    height: 24px; /* 匹配滑块高度 */
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 1;
+    outline: none; /* 焦点反馈交给 .toggle-slider 的柔光，隐藏框自身不描边 */
+}
+/* 紧凑行布局（左文字右滑块）：滑块贴右缘，无侧边距 */
+.toggle-row .setting-toggle input[type="checkbox"] {
+    right: 0;
+}
+/* 通用 input 样式(.settings-content .setting-group input 设 width:100%/padding)会覆盖本开关，
+   用更高优先级把它拉回为隐藏滑块盒，保证聚焦滚动与点击命中的盒模型正确 */
+.settings-content .setting-group .setting-toggle input[type="checkbox"] {
+    width: 44px;
+    height: 24px;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: none;
+    font-size: inherit;
+    transition: none;
+    outline: none;
+    right: 12px;
+    left: auto;
+}
+.settings-content .setting-group .toggle-row .setting-toggle input[type="checkbox"] {
+    right: 0;
 }
 /* 系统关闭透明时模糊开关整体置灰 */
 .setting-toggle.disabled {
