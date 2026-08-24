@@ -475,10 +475,12 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
 /* 学科胶囊 */
 .subject-pills {
     display: flex;
+    align-items: center;
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
-    padding: 0 2px;
+    padding: 5px 2px;   /* 纵向留白：给焦点描边呼吸空间，避免滚动容器把上下溢出的描边裁掉（括号状） */
+    margin: -5px 0;     /* 抵消留白：整体占用高度不变，仍随底栏内容垂直居中 */
 }
 .subject-pill {
     flex: 0 0 auto;
