@@ -133,7 +133,7 @@
                             </div>
                             <div class="card-content">${window.AppUtils.renderContentBySetting(hw.content, state.settings.beautifyNumber !== false)}</div>
                         </div>
-                        <div class="card-actions" role="toolbar">
+                        <div class="card-actions">
                             <button class="c-act c-edit" type="button" aria-label="编辑作业">
                                 <span class="c-act-label">编辑</span>
                             </button>
@@ -168,6 +168,9 @@
                             const actions = card.querySelector('.card-actions');
                             if (actions) actions.classList.remove('confirming');
                             activeCardId = null;
+                            // 操作条激活时的"编辑/删除"按钮即将随 visibility 隐藏，
+                            // 若焦点恰好在其内部，必须拉回卡片本体的焦点，避免焦点悬空/掉到 body
+                            if (actions && actions.contains(document.activeElement)) card.focus();
                         }
                     });
 

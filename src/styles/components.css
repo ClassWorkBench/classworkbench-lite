@@ -110,7 +110,7 @@
 }
 .alert-area:active { transform: scale(0.94); }
 @media (hover: hover) { .alert-area:hover { filter: brightness(1.06); } }
-.alert-area:focus-visible { box-shadow: var(--glow-focus); }
+.alert-area:focus-visible { outline: none; box-shadow: var(--glow-focus); }
 .alert-dot {
     width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
     animation: alertPulse 1.5s ease-in-out infinite;
@@ -235,6 +235,7 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     z-index: 5;
 }
 .homework-card:focus-visible {
+    outline: none; /* 大表面保留柔光焦点，覆盖 base.css 的统一描边环 */
     box-shadow: var(--glow-focus);
 }
 .homework-card::before {
@@ -293,11 +294,16 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     z-index: 2;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s var(--transition-smooth);
+    /* 关键：未激活时用 visibility 把"编辑/删除"按钮移出 Tab 顺序与读屏树，
+       否则每张卡的两个按钮都永远是焦点可达的幽灵项。淡出动画播完后（0.3s 延迟）再真正隐藏。 */
+    visibility: hidden;
+    transition: opacity 0.3s var(--transition-smooth), visibility 0s linear 0.3s;
 }
 .homework-card.card-active .card-actions {
     opacity: 1;
     pointer-events: auto;
+    visibility: visible;
+    transition: opacity 0.3s var(--transition-smooth), visibility 0s;
 }
 
 /* 单个按钮 */
@@ -577,6 +583,15 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     inset: 0;
     z-index: 80;
     pointer-events: none;
+    /* 关闭时用 visibility 从 Tab 顺序和读屏树中彻底移除，
+       仅靠 opacity/pointer-events 会让 5 个菜单按钮变成"幽灵可聚焦项"。
+       保留 0.25s 延迟，让淡出动画播完后再真正隐藏（visibility 在打开时立即恢复，避免切入首帧闪烁）。 */
+    visibility: hidden;
+    transition: visibility 0s linear 0.25s;
+}
+.more-sheet.open {
+    visibility: visible;
+    transition: visibility 0s;
 }
 .more-sheet-panel {
     position: fixed;
@@ -1630,11 +1645,19 @@ body.reduce-anim .segmented .seg-btn {
     font-size: 0.86rem;
     font-weight: 500;
     color: var(--text-secondary);
-    transition: all 0.2s var(--transition-smooth);
+    /* 关键：不要把 transition 设为 all。该导航项会在弹窗 dialogPop(0.45s) 期间被自动聚焦，
+       若用 transition:all，聚焦触发的 transform/其它属性会与弹窗弹簧动画叠在同一帧，
+       表现为"设置打开时多出一个找不到来源的诡异动画"。只过渡视觉强相关属性。 */
+    transition: background-color 0.2s var(--transition-smooth), color 0.2s var(--transition-smooth), box-shadow 0.2s var(--transition-smooth), transform 0.1s var(--transition-smooth);
     border: none;
     background: transparent;
     text-align: left;
     width: 100%;
+    font-family: inherit;
+}
+.settings-nav-item:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 .settings-nav-item .nav-icon {
     font-size: 1.1rem;

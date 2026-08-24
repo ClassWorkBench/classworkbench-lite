@@ -27,6 +27,24 @@
     // QQ IPC 监听清理函数的可变引用（通过对象传递给子模块）
     const qqCleanup = { current: null };
 
+    // 为所有 role="radiogroup" 分段控件绑定左右方向键切换（radio 语义要求方向键移动并选中）
+    function bindRadiogroupKeys(root) {
+        root.querySelectorAll('[role="radiogroup"]').forEach(group => {
+            group.addEventListener('keydown', (e) => {
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                const btns = Array.from(group.querySelectorAll('[role="radio"]'));
+                if (!btns.length) return;
+                const focused = btns.indexOf(document.activeElement);
+                const current = focused >= 0 ? focused : Math.max(btns.findIndex(b => b.classList.contains('active')), 0);
+                const delta = e.key === 'ArrowRight' ? 1 : -1;
+                const target = btns[(current + delta + btns.length) % btns.length];
+                e.preventDefault();
+                target.focus();
+                target.click(); // 复用既有 click 逻辑，联动保存/aria-checked
+            });
+        });
+    }
+
     function openSettings() {
         const settings = state.settings;
         const qq = settings.qq;
@@ -68,43 +86,43 @@
             <div class="settings-shell">
                 <!-- 左侧导航 -->
                 <nav class="settings-nav" id="settingsNav">
-                    <div class="settings-nav-item active" data-panel="general">
+                    <button type="button" class="settings-nav-item active" data-panel="general">
                         <span class="nav-icon">${emoji('⚙️')}</span>
                         <span class="nav-label">常规设置</span>
-                    </div>
-                    <div class="settings-nav-item" data-panel="weather">
+                    </button>
+                    <button type="button" class="settings-nav-item" data-panel="weather">
                         <span class="nav-icon">${emoji('🌤️')}</span>
                         <span class="nav-label">天气</span>
-                    </div>
-                    <div class="settings-nav-item" data-panel="personal">
+                    </button>
+                    <button type="button" class="settings-nav-item" data-panel="personal">
                         <span class="nav-icon">${emoji('🎨')}</span>
                         <span class="nav-label">个性化</span>
-                    </div>
-                    <div class="settings-nav-item" data-panel="accessibility">
+                    </button>
+                    <button type="button" class="settings-nav-item" data-panel="accessibility">
                         <span class="nav-icon">${emoji('👓')}</span>
                         <span class="nav-label">辅助功能</span>
-                    </div>
-                    <div class="settings-nav-item" data-panel="subjects">
+                    </button>
+                    <button type="button" class="settings-nav-item" data-panel="subjects">
                         <span class="nav-icon">${emoji('📚')}</span>
                         <span class="nav-label">学科管理</span>
-                    </div>
-                    <div class="settings-nav-item" data-panel="qq">
+                    </button>
+                    <button type="button" class="settings-nav-item" data-panel="qq">
                         <span class="nav-icon">${emoji('📨')}</span>
                         <span class="nav-label">QQ监听</span>
-                    </div>
-                    <div class="settings-nav-item" data-panel="solve">
+                    </button>
+                    <button type="button" class="settings-nav-item" data-panel="solve">
                         <span class="nav-icon"><img class="emoji" src="emoji/camera_color.svg" alt="📷"></span>
                         <span class="nav-label">拍照搜题</span>
-                    </div>
-                    <div class="settings-nav-item" data-panel="data">
+                    </button>
+                    <button type="button" class="settings-nav-item" data-panel="data">
                         <span class="nav-icon">${emoji('🗃️')}</span>
                         <span class="nav-label">数据管理</span>
-                    </div>
+                    </button>
                     <div class="settings-nav-spacer"></div>
-                    <div class="settings-nav-item" data-panel="about">
+                    <button type="button" class="settings-nav-item" data-panel="about">
                         <span class="nav-icon"><img class="emoji" src="icons/info.svg" alt="ℹ️"></span>
                         <span class="nav-label">关于</span>
-                    </div>
+                    </button>
                 </nav>
 
                 <!-- 右侧内容区 -->
@@ -136,6 +154,8 @@
 
         // 导航切换
         M.nav(dialog);
+        // 分段控件（radio 组）支持左右方向键
+        bindRadiogroupKeys(dialog);
 
         // 各面板绑定
         M.general.bind(ctx);

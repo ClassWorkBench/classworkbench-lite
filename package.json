@@ -15,6 +15,7 @@
     "smoke:fill-active": "electron test/smoke/fill-active.js",
     "smoke:fill-100yr": "electron test/smoke/fill-100yr.js",
     "smoke:slide": "node test/smoke/slide.js",
+    "smoke:a11y": "node test/smoke/a11y-probe.js",
     "smoke:stress": "node test/smoke/stress.js",
     "smoke:stress-3mo": "node test/smoke/stress-3mo.js",
     "smoke:switch-100yr": "node test/smoke/switch-100yr.js",

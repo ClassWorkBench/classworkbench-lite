@@ -39,8 +39,23 @@
         toggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) {
             positionPanel();
-            const exportBtn = document.getElementById('exportImageBtn');
-            if (exportBtn) exportBtn.focus();
+            // 聚焦第一项，而不是第三个"复制排版图"——键盘用户打开菜单应落在逻辑起点。
+            // 注意：.open 刚加上时，浏览器要到下一帧样式重算后才把 visibility 从 hidden 变为 visible，
+            // 此刻同步 focus() 会因"元素尚不可聚焦"静默失效。requestAnimationFrame 回调又早于样式重算，
+            // 故采用"逐帧重试直到焦点真正落到目标"的稳妥写法（通常第 1~2 帧即命中）。
+            const firstItem = panel.querySelector('.more-item');
+            if (firstItem) {
+                // Chromium 下 visibility 从 hidden→visible 是逐帧提交的，点击打开后往往要等面板
+                // 开启动画（0.25s）走完才真正可聚焦。逐帧重试直到焦点落定，上限 40 帧（≈0.67s）
+                // 做安全兜底，避免极端情况下无限循环；通常 0.25s 内即可命中。
+                let tries = 0;
+                const tryFocus = () => {
+                    firstItem.focus();
+                    if (document.activeElement === firstItem || tries++ >= 40) return;
+                    requestAnimationFrame(tryFocus);
+                };
+                tryFocus();
+            }
         } else if (!open && sheet.contains(document.activeElement)) {
             toggleBtn.focus();
         }
@@ -164,7 +179,21 @@
         });
         bindButtons();
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && isOpen) closeMenu();
+            if (!isOpen) return;
+            if (e.key === 'Escape') { closeMenu(); return; }
+            // 菜单用方向键在菜单项间巡游（role=menu/menuitem 的标准交互）。
+            // 搜索微窗模式下 panel 内的 .more-item 已被替换为空 → 数组为空直接跳过，不抢搜索键控
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                const items = Array.from(panel.querySelectorAll('.more-item'));
+                if (!items.length) return;
+                e.preventDefault();
+                const cur = items.indexOf(document.activeElement);
+                const delta = e.key === 'ArrowDown' ? 1 : -1;
+                const next = cur >= 0
+                    ? items[(cur + delta + items.length) % items.length]
+                    : items[delta === 1 ? 0 : items.length - 1];
+                next.focus();
+            }
         });
     }
 
