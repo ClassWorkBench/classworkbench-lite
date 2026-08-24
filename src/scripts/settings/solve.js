@@ -28,16 +28,30 @@ window.SettingsModules.solve = {
                                 <small>若列表为空，请先在「更多 → 拍照搜题」中授权一次摄像头。</small>
                             </div>
                             <div class="setting-group">
-                                <label>画面翻转</label>
-                                <div class="toggle-row">
-                                    <div class="toggle-row-text">
-                                        <span class="toggle-row-title">水平镜像</span>
-                                        <span class="toggle-row-desc">展台画面左右颠倒时开启</span>
+                                <label>画面方向（展台旋转 / 镜像）</label>
+                                <div class="orient-row">
+                                    <div class="orient-preview" id="solveOrientPreview">
+                                        <video id="solveLiveVideo" autoplay playsinline muted></video>
                                     </div>
-                                    <label class="setting-toggle">
-                                        <input type="checkbox" id="solveFlipToggle" ${sol.flip ? 'checked' : ''} aria-label="水平镜像翻转">
-                                        <span class="toggle-slider"></span>
-                                    </label>
+                                    <div class="orient-controls">
+                                        <div class="segmented" id="solveOrientSeg" role="radiogroup" aria-label="画面旋转角度">
+                                            <button type="button" class="seg-btn ${((sol.rotation || 0) % 360) === 0 ? 'active' : ''}" data-rot="0" role="radio" aria-checked="${((sol.rotation || 0) % 360) === 0}">0°</button>
+                                            <button type="button" class="seg-btn ${((sol.rotation || 0) % 360) === 90 ? 'active' : ''}" data-rot="90" role="radio" aria-checked="${((sol.rotation || 0) % 360) === 90}">90°</button>
+                                            <button type="button" class="seg-btn ${((sol.rotation || 0) % 360) === 180 ? 'active' : ''}" data-rot="180" role="radio" aria-checked="${((sol.rotation || 0) % 360) === 180}">180°</button>
+                                            <button type="button" class="seg-btn ${((sol.rotation || 0) % 360) === 270 ? 'active' : ''}" data-rot="270" role="radio" aria-checked="${((sol.rotation || 0) % 360) === 270}">270°</button>
+                                        </div>
+                                        <div class="toggle-row">
+                                            <div class="toggle-row-text">
+                                                <span class="toggle-row-title">水平镜像</span>
+                                                <span class="toggle-row-desc">左右颠倒时开启</span>
+                                            </div>
+                                            <label class="setting-toggle">
+                                                <input type="checkbox" id="solveMirrorToggle" ${sol.flip ? 'checked' : ''} aria-label="水平镜像">
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                        <small class="orient-tip">实时摄像头已在左侧，旋转 / 镜像即时生效（进入本页自动开启）。</small>
+                                    </div>
                                 </div>
                             </div>
                             <div class="setting-group">
@@ -129,19 +143,121 @@ window.SettingsModules.solve = {
         if (refreshBtn && select) {
             refreshBtn.addEventListener('click', () => refreshCameraList(select));
         }
-        if (select) {
-            select.addEventListener('change', async () => {
-                sol.cameraId = select.value;
+
+        // —— 画面方向：旋转 + 镜像（左侧实时摄像头即时反映）——
+        const liveVideo = document.getElementById('solveLiveVideo');
+        const orientPreview = document.getElementById('solveOrientPreview');
+        function updateLiveTransform() {
+            if (!liveVideo) return;
+            // 与拍摄端同一规则：先镜像(scaleX) 再旋转，所见即所得
+            liveVideo.style.transform = 'rotate(' + ((sol.rotation || 0) % 360) + 'deg) scaleX(' + (sol.flip ? -1 : 1) + ')';
+        }
+        const orientSeg = document.getElementById('solveOrientSeg');
+        if (orientSeg) {
+            orientSeg.addEventListener('click', async (e) => {
+                const btn = e.target.closest('.seg-btn');
+                if (!btn) return;
+                const rot = Number(btn.dataset.rot);
+                if (rot === (sol.rotation || 0)) return;
+                sol.rotation = rot;
+                orientSeg.querySelectorAll('.seg-btn').forEach((b) => {
+                    const active = Number(b.dataset.rot) === rot;
+                    b.classList.toggle('active', active);
+                    b.setAttribute('aria-checked', active ? 'true' : 'false');
+                });
+                updateLiveTransform();
+                await saveSettings();
+            });
+        }
+        const mirrorToggle = document.getElementById('solveMirrorToggle');
+        if (mirrorToggle) {
+            mirrorToggle.addEventListener('change', async () => {
+                sol.flip = !!mirrorToggle.checked;
+                updateLiveTransform();
                 await saveSettings();
             });
         }
 
-        const flipToggle = document.getElementById('solveFlipToggle');
-        if (flipToggle) {
-            flipToggle.addEventListener('change', async () => {
-                sol.flip = !!flipToggle.checked;
+        // —— 实时摄像头预览：进入本面板自动开启，关闭设置时释放 ——
+        let stream = null;
+        let started = false;
+        let starting = false;
+        const panel = document.getElementById('panel-solve');
+
+        async function startPreview() {
+            if (started || starting) return;
+            starting = true;
+            if (orientPreview) orientPreview.classList.add('is-loading');
+            try {
+                let devices = [];
+                try {
+                    devices = (await navigator.mediaDevices.enumerateDevices())
+                        .filter(d => d.kind === 'videoinput');
+                } catch (_) {}
+                if (!devices.length) {
+                    toast('未找到摄像头，请先在「拍照搜题」中授权');
+                    return;
+                }
+                // 先按首选设备；失败再退化为系统默认设备，提升稳定性
+                const tryConst = (exact) => ({
+                    video: {
+                        width: { ideal: 640, max: 1280 },
+                        height: { ideal: 360, max: 720 },
+                        frameRate: { ideal: 15 },
+                        ...(exact ? { deviceId: { exact } } : {})
+                    },
+                    audio: false
+                });
+                let s;
+                try {
+                    s = await navigator.mediaDevices.getUserMedia(tryConst(sol.cameraId));
+                } catch (_) {
+                    s = await navigator.mediaDevices.getUserMedia(tryConst(null));
+                }
+                started = true;
+                starting = false;
+                stream = s;
+                liveVideo.srcObject = s;
+                if (orientPreview) orientPreview.classList.remove('is-loading');
+                updateLiveTransform();
+                await liveVideo.play().catch(() => {});
+            } catch (e) {
+                starting = false;
+                if (orientPreview) orientPreview.classList.remove('is-loading');
+                console.error('设置面板摄像头预览启动失败:', e);
+                toast('实时预览不可用，请先关闭「拍照搜题」再试');
+            }
+        }
+        function stopPreview() {
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+                stream = null;
+            }
+            started = false;
+            starting = false;
+            if (liveVideo) liveVideo.srcObject = null;
+        }
+        function restartPreview() {
+            stopPreview();
+            startPreview();
+        }
+        if (select) {
+            select.addEventListener('change', async () => {
+                sol.cameraId = select.value;
                 await saveSettings();
+                if (started) restartPreview(); // 切换摄像头后重连预览
             });
+        }
+        // 面板切换为活动时开启预览
+        let previewObs = null;
+        const ensureOnActive = () => {
+            if (panel && !panel.classList.contains('active')) return;
+            startPreview();
+        };
+        if (panel) {
+            previewObs = new MutationObserver(ensureOnActive);
+            previewObs.observe(panel, { attributes: true, attributeFilter: ['class'] });
+            ensureOnActive();
         }
 
         const autoToggle = document.getElementById('solveAutoScanToggle');
@@ -210,5 +326,11 @@ window.SettingsModules.solve = {
                 }
             });
         }
+
+        // 面板卸载 / 设置关闭时释放摄像头预览资源
+        return () => {
+            if (previewObs) previewObs.disconnect();
+            stopPreview();
+        };
     }
 };

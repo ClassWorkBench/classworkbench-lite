@@ -3477,3 +3477,39 @@ body.reduce-anim .cp-pop {
 .solve-opt input { accent-color: var(--accent); }
 .solve-btns { margin-top: 2px; }
 .solve-btns [hidden] { display: none !important; }
+
+/* 拍照搜题 · 画面实时预览（旋转 + 镜像，替换原箭头示意图） */
+.orient-row { display: flex; gap: 14px; align-items: flex-start; }
+.orient-preview {
+    width: 112px; height: 84px; flex: none;
+    display: block;
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    background: #000;
+    overflow: hidden;
+    position: relative;
+}
+.orient-preview video {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    background: #000;
+    transition: transform 0.15s var(--transition-smooth);
+}
+.orient-preview::after {
+    /* 未开启前的占位提示 */
+    content: '实时预览';
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    color: var(--text-secondary);
+    font-size: 11px;
+    background: rgba(0,0,0,.45);
+    opacity: 0;
+    transition: opacity .15s var(--transition-smooth);
+    pointer-events: none;
+}
+.orient-preview.is-loading::after { opacity: 1; }
+.orient-controls { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.orient-controls .toggle-row { margin-top: 0; width: 100%; }
+.orient-tip { opacity: .75; }
+body.reduce-anim .orient-preview video { transition: none; }

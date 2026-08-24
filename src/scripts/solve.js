@@ -30,7 +30,7 @@
 
     function getSolveSettings() {
         if (!state.settings.solve) {
-            state.settings.solve = { cameraId: '', flip: false, autoScan: true, sensitivity: 2 };
+            state.settings.solve = { cameraId: '', flip: false, rotation: 0, autoScan: true, sensitivity: 2 };
         }
         return state.settings.solve;
     }
@@ -170,6 +170,8 @@
         stopTracks(c);
         c.stream = stream;
         c.video.srcObject = stream;
+        // 预览与拍摄共用同一方向规则（先镜像再旋转），所见即所得
+        c.video.style.transform = 'rotate(' + ((c.sol.rotation || 0) % 360) + 'deg) scaleX(' + (c.sol.flip ? -1 : 1) + ')';
         try {
             await c.video.play();
         } catch (_) { /* 自动播放策略已放开，正常不会走到 */ }
@@ -311,17 +313,22 @@
         const vw = c.video.videoWidth;
         const vh = c.video.videoHeight;
         const scale = Math.min(1, MAX_EDGE / Math.max(vw, vh));
-        const w = Math.round(vw * scale);
-        const h = Math.round(vh * scale);
+        const rawW = Math.round(vw * scale);
+        const rawH = Math.round(vh * scale);
+        // 旋转 90/270 时输出宽高互换
+        const rot = (c.sol.rotation || 0) % 360;
+        const swap = rot % 180 !== 0;
+        const w = swap ? rawH : rawW;
+        const h = swap ? rawW : rawH;
         const canvas = c._shotCanvas || (c._shotCanvas = document.createElement('canvas'));
         canvas.width = w;
         canvas.height = h;
         const g = canvas.getContext('2d');
-        if (c.sol.flip) {
-            g.translate(w, 0);
-            g.scale(-1, 1);
-        }
-        g.drawImage(c.video, 0, 0, w, h);
+        // 顺序：先镜像(scaleX) 再旋转，与预览 CSS 规则一致 → 所见即所得
+        g.translate(w / 2, h / 2);
+        g.rotate(rot * Math.PI / 180);
+        g.scale(c.sol.flip ? -1 : 1, 1);
+        g.drawImage(c.video, -rawW / 2, -rawH / 2, rawW, rawH);
 
         c.shotData = canvas.toDataURL('image/png');
         c.shot.src = c.shotData;

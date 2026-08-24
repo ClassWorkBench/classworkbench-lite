@@ -122,8 +122,11 @@
             </div>
         `;
 
+        const disposers = [];
         const { close, dialog } = showModal(html, () => {
-            // 正常关闭设置面板时也要卸掉 QQ IPC 监听，避免状态回调操作已移除的 DOM。
+            // 关闭设置面板：先卸掉各面板返回的清理函数（如 solve 的实时摄像头预览），
+            // 再卸掉 QQ IPC 监听，避免状态回调操作已移除的 DOM。
+            for (const d of disposers) { try { d(); } catch (_) {} }
             if (qqCleanup.current) {
                 try { qqCleanup.current(); } catch (_) {}
                 qqCleanup.current = null;
@@ -141,7 +144,8 @@
         M.accessibility.bind(ctx);
         M.subjects.bind(ctx);
         M.qq.bind(ctx);
-        M.solve.bind(ctx);
+        const solveCleanup = M.solve.bind(ctx);
+        if (solveCleanup) disposers.push(solveCleanup);
         M.data.bind(ctx);
         M.about.bind(ctx);
     }
