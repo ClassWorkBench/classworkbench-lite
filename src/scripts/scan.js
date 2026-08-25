@@ -1,6 +1,8 @@
 // ============================================
 // src/scripts/scan.js — 相机多页扫描（更多菜单入口）
-// 弹出式表单：展台/摄像头预览 + 自动扫描，多页模式
+// 弹出式表单：展台/摄像头预览 + 倒计时自动连拍，多页模式
+// 勾选「自动扫描」后：每拍完一页自动进入下一轮倒计时
+// （黑底 + 大号粗体数字倒数），倒数完自动拍摄下一页；秒数可轮询切换。
 // 每次抓拍缩成缩略图累积到侧边「文档条」，可连续拍摄/删除单张，
 // 直到用户手动点「完成」→ 唤起置顶浮窗跨应用插入；或「保存为文件」
 // 落盘到桌面「相机扫描/扫描_YYYYMMDD/」。
@@ -15,24 +17,19 @@
 
     let current = null;   // 当前打开的扫描会话
 
-    // 灵敏度 → 运动判定阈值（相邻帧灰度差/像素，0-255）。数值越小越灵敏
-    const MOTION_TH = { 1: 18, 2: 12, 3: 7 };
-    const SAMPLE_MS = 240;       // 采样间隔（毫秒）
-    // 滑动窗口稳定判定：最近 WINDOW_N 次采样中稳定帧数 >= WINDOW_K 即触发
-    const WINDOW_N = 9;
-    const WINDOW_K = 7;
-    const MAX_EDGE = 1600;       // 出图最长边像素（控制体积）
+    // 倒计时秒数（无运动检测，改用固定延时自动连拍）
+    const DELAYS = [3, 5, 10];     // 可轮询切换的倒计时档位
+    const REST_PREVIEW_MS = 1200;  // 每张之间的清晰预览时长：拍完先短暂看画面，再进入下一轮倒计时
+    const MAX_EDGE = 1600;         // 出图最长边像素（控制体积）
     const RES_MAP = {
         '640':  { w: 640,  h: 480 },
         '720':  { w: 1280, h: 720 },
         '1080': { w: 1920, h: 1080 }
     };
-    // 自动抓拍后需先检测到画面变化，再重新稳定，才允许拍摄下一页（避免同页连拍）
-    const AWAIT_CHANGE_MS = 600; // 抓拍后给一次静置缓冲（毫秒）
 
     function getSolveSettings() {
         if (!state.settings.solve) {
-            state.settings.solve = { cameraId: '', flip: false, rotation: 0, resolution: '720', autoScan: true, sensitivity: 2 };
+            state.settings.solve = { cameraId: '', flip: false, rotation: 0, autoScan: true, sensitivity: 2, delaySec: 5 };
         }
         return state.settings.solve;
     }
@@ -43,19 +40,22 @@
                 <span class="solve-head-icon"><img class="emoji" src="emoji/camera_color.svg" alt="📷"></span>
                 <div class="solve-head-text">
                     <div class="solve-title">相机扫描</div>
-                    <div class="solve-sub">多页模式：拍一页缩成一张放到右侧，完成后再插入或保存</div>
+                    <div class="solve-sub">多页模式：倒计时自动连拍，完成后插入或保存</div>
                 </div>
             </div>
             <div class="scan-stage">
                 <div class="solve-preview" id="scanPreview">
                     <video id="scanVideo" autoplay playsinline muted></video>
-                    <div class="solve-scan" id="scanScan" aria-hidden="true"><i class="solve-scan-line"></i></div>
+                    <div class="scan-countdown" id="scanCountdown" aria-hidden="true" hidden>
+                        <span class="scan-countdown-num" id="scanCountdownNum">5</span>
+                    </div>
                 </div>
                 <div class="scan-strip" id="scanStrip"></div>
             </div>
             <div class="solve-status" id="scanStatus">正在打开摄像头…</div>
             <div class="solve-opts">
                 <label class="solve-opt"><input type="checkbox" id="scanAutoCb" ${sol.autoScan ? 'checked' : ''}> 自动扫描</label>
+                <button class="scan-delay-btn" id="scanDelayBtn" type="button">${(sol.delaySec || 5)}秒</button>
             </div>
             <div class="dialog-btn-row solve-btns">
                 <button class="btn" id="scanCancelBtn" type="button">取消</button>
@@ -88,22 +88,19 @@
             video: dialog.querySelector('#scanVideo'),
             preview: dialog.querySelector('#scanPreview'),
             scan: dialog.querySelector('#scanScan'),
+            countdownEl: dialog.querySelector('#scanCountdown'),
+            countdownNum: dialog.querySelector('#scanCountdownNum'),
             strip: dialog.querySelector('#scanStrip'),
             statusEl: dialog.querySelector('#scanStatus'),
             manualBtn: dialog.querySelector('#scanManualBtn'),
             saveBtn: dialog.querySelector('#scanSaveBtn'),
             doneBtn: dialog.querySelector('#scanDoneBtn'),
             stream: null,
-            raf: 0,
             pages: [],           // 已拍摄页面（dataURL，按顺序）
-            phase: 'idle',
-            motionCount: 0,
-            stableCount: 0,
-            lastSample: 0,
-            bench: null,
-            win: null,
-            winStable: 0,
-            awaitChange: false,  // 待画面变化后才允许下一次抓拍
+            delayBtn: null,
+            countTimer: 0,       // 倒计时 setTimeout 句柄
+            countdown: 0,        // 当前剩余秒数
+            counting: false,     // 是否处于倒计时状态
             stopped: false
         };
 
@@ -119,16 +116,25 @@
         const cancelBtn = document.getElementById('scanCancelBtn');
         cancelBtn.addEventListener('click', () => c.close());
 
+        // 秒数轮询切换：3 → 5 → 10 → 3 …
+        c.delayBtn = document.getElementById('scanDelayBtn');
+        c.delayBtn.addEventListener('click', async () => {
+            const idx = DELAYS.indexOf(c.sol.delaySec || 5);
+            c.sol.delaySec = DELAYS[(idx + 1) % DELAYS.length];
+            c.delayBtn.textContent = c.sol.delaySec + '秒';
+            await window.AppStorage.saveSettings();
+            // 本轮仍在倒计时时改用新秒数重开，反馈即时
+            if (c.counting) rearm();
+        });
+
         const autoCb = document.getElementById('scanAutoCb');
         autoCb.addEventListener('change', async () => {
             c.sol.autoScan = !!autoCb.checked;
-            c.scan.classList.toggle('hidden', !c.sol.autoScan);
-            resetScanState();
+            resetCountdown();
             updateScanStatus();
-            if (c.sol.autoScan) rearm();
+            if (c.sol.autoScan) rearm();   // 从关→开时启动倒计时
             await window.AppStorage.saveSettings();
         });
-        c.scan.classList.toggle('hidden', !c.sol.autoScan);
     }
 
     function acquireStream(sol, deviceId) {
@@ -159,119 +165,74 @@
         c.video.style.transform = 'rotate(' + ((c.sol.rotation || 0) % 360) + 'deg) scaleX(' + (c.sol.flip ? -1 : 1) + ')';
         try { await c.video.play(); } catch (_) {}
         if (current !== c) { stopTracks(c); return; }
-        setStatus('摄像头就绪，放入页面：稳定后自动拍摄，可连续多页');
-        resetScanState();
+        setStatus('摄像头就绪，放好页面后自动倒计时拍摄，可连续多页');
         if (current !== c) return;
         setTimeout(rearm, 0);
         updateScanStatus();
     }
 
+    // ---- 倒计时：黑底 + 大号粗体数字，每档 N 秒后自动拍摄 ----
+    function showCountdown() {
+        const c = current;
+        if (!c) return;
+        c.countdownEl.hidden = false;
+    }
+
+    function setCountdownNum(n) {
+        const c = current;
+        if (c && c.countdownNum) c.countdownNum.textContent = n;
+    }
+
+    function hideCountdown() {
+        const c = current;
+        if (c && c.countdownEl) c.countdownEl.hidden = true;
+    }
+
+    /** 重置倒计时状态，恢复清晰预览 */
+    function resetCountdown() {
+        const c = current;
+        if (!c) return;
+        clearTimeout(c.countTimer);
+        c.countTimer = 0;
+        c.counting = false;
+        c.countdown = 0;
+        hideCountdown();
+    }
+
+    /** 拍完先短暂恢复清晰预览给换页留喘息，随后自动进入下一轮倒计时 */
+    function previewBreak(ms) {
+        const c = current;
+        if (!c || c.stopped) return;
+        clearTimeout(c.countTimer);
+        resetCountdown();
+        setStatus(`已拍摄 ${c.pages.length} 页，稍后自动倒计时…`);
+        c.countTimer = setTimeout(() => {
+            if (current === c) rearm();
+        }, ms);
+    }
+
+    /** 启动一轮倒计时（自动扫描开启时） */
     function rearm() {
         const c = current;
         if (!c || c.stopped || !c.sol.autoScan) return;
-        c.raf = setTimeout(scanLoop, SAMPLE_MS);
+        clearTimeout(c.countTimer);
+        c.counting = true;
+        c.countdown = c.sol.delaySec || 5;
+        showCountdown();
+        setCountdownNum(c.countdown);
+        updateScanStatus();
+        c.countTimer = setTimeout(countStep, 1000);
     }
 
-    // ---- 帧差异：相邻帧灰度平均绝对差（带曝光/亮度漂移补偿） ----
-    function computeDiff(c, video) {
-        const vw = video.videoWidth;
-        const vh = video.videoHeight;
-        const W = 160;
-        const H = Math.max(2, Math.round(vh * W / vw));
-        const canvas = c._diffCanvas || (c._diffCanvas = document.createElement('canvas'));
-        canvas.width = W;
-        canvas.height = H;
-        const g = canvas.getContext('2d', { willReadFrequently: true });
-        g.drawImage(video, 0, 0, W, H);
-        const data = g.getImageData(0, 0, W, H).data;
-        let sum = 0, n = 0, lum = 0;
-        for (let i = 0; i < data.length; i += 16) {
-            lum += (data[i] + data[i + 1] + data[i + 2]) / 3;
-            if (c.bench && c.bench.px[i] !== undefined) sum += Math.abs(data[i] - c.bench.px[i]);
-            n++;
-        }
-        lum /= n;
-        let diff = n ? sum / n : 0;
-        if (c.bench) {
-            const drift = lum - c.bench.lum;
-            diff = Math.max(0, diff - Math.abs(drift) * 0.5);
-        }
-        if (!c.bench) c.bench = {};
-        c.bench.px = new Uint8ClampedArray(data);
-        c.bench.lum = lum;
-        return diff;
-    }
-
-    function resetScanState() {
-        const c = current;
-        if (!c) return;
-        c.phase = 'idle';
-        c.motionCount = 0;
-        c.stableCount = 0;
-        c.bench = null;
-        c.win = null;
-        c.winStable = 0;
-    }
-
-    function updateScanStatus() {
-        const c = current;
-        if (!c) return;
-        if (c.pages.length) setStatus('已拍摄 ' + c.pages.length + ' 页，可继续拍或点「完成」');
-        else if (!c.sol.autoScan) setStatus('手动模式：对准页面点「手动拍照」');
-        else if (c.awaitChange) setStatus('已拍摄，换下一页时自动重拍…');
-        else if (c.phase === 'motion') setStatus('检测到页面，正在对焦…');
-        else if (c.phase === 'stable') setStatus('保持稳定，即将自动拍摄…');
-        else setStatus('等待放入页面…（自动扫描中）');
-    }
-
-    function scanLoop() {
+    // 每秒推进，数到 0 自动拍摄
+    function countStep() {
         const c = current;
         if (!c || c.stopped) return;
-        if (!c.sol.autoScan) return;
-        sampleFrame();
-        c.raf = setTimeout(scanLoop, SAMPLE_MS);
-    }
-
-    function sampleFrame() {
-        const c = current;
-        if (!c || !c.video.videoWidth || !c.sol.autoScan) return;
-        if (!c.bench) { computeDiff(c, c.video); return; }
-
-        const d = computeDiff(c, c.video);
-        const th = MOTION_TH[c.sol.sensitivity] || 12;
-
-        // 待换页态：需先检测到明显运动，才解除，避免同页连拍
-        if (c.awaitChange) {
-            if (d > th) {
-                c.awaitChange = false;
-                resetScanState();
-                updateScanStatus();
-            }
-            c.stableCount = 0;
-            return;
-        }
-
-        let cat;
-        if (d > th) {
-            c.motionCount++;
-            c.stableCount = 0;
-            cat = 0;
-            if (c.motionCount >= 2 || c.phase !== 'idle') c.phase = 'motion';
-        } else {
-            c.motionCount = 0;
-            c.stableCount++;
-            c.phase = 'stable';
-            cat = 1;
-        }
-
-        c.win = c.win || [];
-        c.win.push(cat);
-        if (cat === 1) c.winStable++;
-        while (c.win.length > WINDOW_N) {
-            if (c.win.shift() === 1) c.winStable--;
-        }
-        if (c.winStable >= WINDOW_K) { capture('auto'); return; }
+        if (c.countdown <= 1) { capture('auto'); return; }
+        c.countdown--;
+        setCountdownNum(c.countdown);
         updateScanStatus();
+        c.countTimer = setTimeout(countStep, 1000);
     }
 
     // ---- 抓拍：出图并累积到页面列表，不停止视频（可继续下一页） ----
@@ -301,13 +262,12 @@
         c.pages.push(data);
         renderStrip();
 
-        // 自动模式下：进入「待换页」状态（需先发生画面变化才允许下一张）
+        // 自动模式：拍完先短暂清晰预览，再自动进入下一轮倒计时（间隔自然防同页连拍）
         if (mode === 'auto') {
-            c.awaitChange = true;
-            // 短暂静置缓冲，避免切换瞬间被误判为稳定
-            setTimeout(() => { if (current === c) { c.awaitChange = false; } }, AWAIT_CHANGE_MS);
+            previewBreak(REST_PREVIEW_MS);
         } else {
-            resetScanState();
+            // 手动模式：恢复清晰预览，等用户再次点击
+            resetCountdown();
         }
         updateScanStatus();
     }
@@ -333,6 +293,15 @@
         });
     }
 
+    function updateScanStatus() {
+        const c = current;
+        if (!c) return;
+        if (!c.sol.autoScan) { setStatus('手动模式：对准页面点「手动拍照」'); return; }
+        if (c.counting) setStatus(`倒计时 ${c.countdown} 秒后自动拍摄…`);
+        else if (c.pages.length) setStatus(`已拍摄 ${c.pages.length} 页，放好下一页后自动拍摄…`);
+        else setStatus('放好页面后自动倒计时拍摄…');
+    }
+
     // ---- 保存为文件：落盘桌面「相机扫描/扫描_YYYYMMDD/」 ----
     async function saveAsFiles() {
         const c = current;
@@ -354,7 +323,8 @@
         if (!c) return;
         if (!c.pages.length) { toast('还没有拍摄页面'); return; }
         if (!window.electronAPI.scan) { toast('当前环境不支持浮窗插入'); return; }
-        // 先把当前画面残留清掉
+        // 先把当前倒计时/残留清掉，避免切走后背后仍在拍摄
+        resetCountdown();
         stopTracks(c);
         try {
             const res = await window.electronAPI.scan.open(c.pages);
@@ -380,7 +350,7 @@
         const c = current;
         if (!c) return;
         c.stopped = true;
-        clearTimeout(c.raf);
+        clearTimeout(c.countTimer);
         stopTracks(c);
         current = null;
     }

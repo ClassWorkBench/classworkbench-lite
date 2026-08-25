@@ -3641,6 +3641,50 @@ body.reduce-anim .cp-pop {
 .scan-strip::-webkit-scrollbar { width: 6px; }
 .scan-strip::-webkit-scrollbar-thumb { background: rgba(0,0,0,.18); border-radius: 3px; }
 
+/* ---------- 相机扫描：倒计时自动连拍（黑底 + 大号粗体数字） ---------- */
+.scan-countdown {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    background: rgba(0, 0, 0, 0.5);   /* 半透明纸：透出取景画面预览 */
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+}
+.scan-countdown[hidden] { display: none; }
+.scan-countdown-num {
+    color: #fff;
+    font-family: var(--font-medium, "SF Pro Text", system-ui, sans-serif);
+    font-size: clamp(4rem, 22vw, 9rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 20px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.8);
+    user-select: none;
+}
+
+/* 秒数轮询切换按钮（3 秒 / 5 秒 / 10 秒） */
+.scan-delay-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.03);
+    border: 1.5px solid rgba(0, 0, 0, 0.06);
+    border-radius: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+}
+.scan-delay-btn:hover {
+    border-color: rgba(0, 0, 0, 0.18);
+    background: rgba(0, 0, 0, 0.05);
+}
+
 /* 拍照搜题 · 画面实时预览（旋转 + 镜像，替换原箭头示意图） */
 .orient-row { display: flex; gap: 14px; align-items: flex-start; }
 .orient-preview {
