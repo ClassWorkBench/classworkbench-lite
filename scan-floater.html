@@ -17,10 +17,14 @@
             -webkit-user-select: none;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
         }
+        body { position: relative; }
         * { box-sizing: border-box; }
 
         /* 收缩态：小圆形按钮 */
         .scan-float-btn {
+            position: absolute;
+            bottom: 0;
+            left: 0;
             width: 60px;
             height: 60px;
             border-radius: 50%;
@@ -31,6 +35,11 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity .28s cubic-bezier(.4,0,.2,1),
+                        transform .28s cubic-bezier(.4,0,.2,1);
+            transform-origin: center;
             /* 整窗可拖动（无拖动柄），按钮本身不可拖 */
             -webkit-app-region: drag;
         }
@@ -42,8 +51,9 @@
         }
         .scan-float-btn .badge {
             position: absolute;
-            top: -2px;
-            right: -2px;
+            top: 0;
+            right: 0;
+            z-index: 2;
             min-width: 20px;
             height: 20px;
             padding: 0 5px;
@@ -70,7 +80,10 @@
 
         /* 展开态：清单面板 */
         .scan-panel {
-            display: none;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            display: flex;
             width: 364px;
             height: 488px;
             /* 对齐作业卡片浮窗的同款白色质感：高不透明度白底（卡片是白玻璃+学科色罩，这里只用纯白实现同等不透明），不用 backdrop blur */
@@ -83,10 +96,23 @@
             overflow: hidden;
             flex-direction: column;
             color: var(--text-primary);
+            opacity: 0;
+            transform: scale(.3);
+            transform-origin: bottom left;
+            transition: opacity .28s cubic-bezier(.4,0,.2,1),
+                        transform .28s cubic-bezier(.4,0,.2,1);
+            pointer-events: none;
         }
-        body.expanded .scan-float-btn { display: none; }
-        body.expanded .scan-panel { display: flex; }
-        body.collapsed .scan-panel { display: none; }
+        body.expanded .scan-float-btn {
+            opacity: 0;
+            transform: scale(.5);
+            pointer-events: none;
+        }
+        body.expanded .scan-panel {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
 
         .scan-panel-head {
             display: flex;
@@ -214,6 +240,40 @@
         .scan-act.primary { background: var(--accent); color: #fff; }
         .scan-act.ghost { background: rgba(0,0,0,.05); color: var(--text-primary); }
         .scan-tip { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+
+        /* ---------- 插入完成：绿色对勾成功遮罩 ---------- */
+        .scan-success {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: grid;
+            place-items: center;
+            background: rgba(255, 255, 255, .96);
+            border-radius: 16px;
+            opacity: 0;
+            transition: opacity .3s ease;
+            pointer-events: none;
+        }
+        .scan-success.show { opacity: 1; }
+        .scan-success svg { width: 64px; height: 64px; }
+        .scan-success-circle {
+            stroke: #22c55e;
+            stroke-width: 3;
+            stroke-dasharray: 151;
+            stroke-dashoffset: 151;
+            transition: stroke-dashoffset .4s ease .1s;
+        }
+        .scan-success.show .scan-success-circle { stroke-dashoffset: 0; }
+        .scan-success-check {
+            stroke: #22c55e;
+            stroke-width: 4;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 40;
+            stroke-dashoffset: 40;
+            transition: stroke-dashoffset .3s ease .45s;
+        }
+        .scan-success.show .scan-success-check { stroke-dashoffset: 0; }
     </style>
 </head>
 <body class="collapsed">
@@ -238,6 +298,10 @@
                 <button class="scan-act primary" id="insertAllBtn" type="button">插入全部</button>
             </div>
             <div class="scan-tip">先点选目标输入框，再「插入全部」会逐张粘贴。单张图片可单击其左下角「插入」。左上角 ✕ 可放弃全部内容。</div>
+        </div>
+        <!-- 插入完成：绿色对勾遮罩 -->
+        <div class="scan-success" id="scanSuccess" aria-hidden="true">
+            <svg viewBox="0 0 52 52"><circle class="scan-success-circle" cx="26" cy="26" r="24" fill="none"/><path class="scan-success-check" d="M14 27l8 8 16-16" fill="none"/></svg>
         </div>
     </div>
 

@@ -21,18 +21,53 @@
     const insertAllBtn = document.getElementById('insertAllBtn');
     const saveBtn = document.getElementById('saveBtn');
     const closeBtn = document.getElementById('closeBtn');
+    const successOverlay = document.getElementById('scanSuccess');
 
     function setTip(t) { if (tipEl) tipEl.textContent = t; }
 
+    /**
+     * 形态切换：
+     * - 展开：先 resize 窗口到 364×488（瞬间），CSS 过渡让面板从按钮位置丝滑放大、按钮淡出
+     * - 收缩：先让面板 CSS 过渡缩小淡出，等过渡完再 resize 窗口回 60×60（避免内容被瞬裁）
+     */
     function setShape(s) {
-        bodyEl.classList.remove('collapsed', 'expanded');
-        bodyEl.classList.add(s === 'expanded' ? 'expanded' : 'collapsed');
-        api.shape(s).catch(() => {});
+        if (s === 'expanded') {
+            bodyEl.classList.remove('collapsed');
+            bodyEl.classList.add('expanded');
+            api.shape('expanded').catch(() => {});
+        } else {
+            bodyEl.classList.remove('expanded');
+            bodyEl.classList.add('collapsed');
+            // 等内容过渡完成后再缩窗口，否则窗口先变小会把面板内容瞬裁
+            setTimeout(() => api.shape('collapsed').catch(() => {}), 280);
+        }
     }
 
-    function expand() { setShape('expanded'); }
+    function expand() {
+        if (successOverlay) successOverlay.classList.remove('show');
+        setShape('expanded');
+    }
 
     function collapse() { setShape('collapsed'); }
+
+    /**
+     * 显示绿色对勾成功动画，可选在动画后执行回调（如收缩）
+     * @param {Function|null} then - 对勾展示 700ms 后执行（传 null 则仅闪现）
+     */
+    function showSuccess(then) {
+        if (!successOverlay) { if (then) then(); return; }
+        successOverlay.classList.remove('show');
+        void successOverlay.offsetWidth;   // 强制 reflow，确保 transition 重新触发
+        successOverlay.classList.add('show');
+        if (then) {
+            setTimeout(then, 700);         // 对勾画完 → 开始收缩
+        } else {
+            // 单张插入：闪现 600ms 后淡出
+            setTimeout(() => {
+                successOverlay.classList.remove('show');
+            }, 600);
+        }
+    }
 
     /** 渲染清单：每张图一个卡片 = 复选框 + 缩略图 + 单张插入 */
     function render() {
@@ -65,9 +100,12 @@
         if (busy) return;
         setTip('正在插入第 ' + (idx + 1) + ' 张…');
         const res = await api.insert(idx);
-        setTip(res && res.ok
-            ? '第 ' + (idx + 1) + ' 张已插入。'
-            : '插入失败：' + ((res && res.error) || '未知错误'));
+        if (res && res.ok) {
+            setTip('第 ' + (idx + 1) + ' 张已插入。');
+            showSuccess(null);   // 单张：闪现绿色对勾，不收缩
+        } else {
+            setTip('插入失败：' + ((res && res.error) || '未知错误'));
+        }
         return res;
     }
 
@@ -88,6 +126,10 @@
                 await new Promise(r => setTimeout(r, 350));
             }
             setTip('已插入 ' + ok + '/' + indexes.length + ' 张。');
+            // 全部插入完成：绿色对勾 → 丝滑收缩回按钮
+            if (ok === indexes.length) {
+                showSuccess(() => collapse());
+            }
         } catch (e) {
             setTip('插入中断：' + (e.message || e));
         } finally {

@@ -6,6 +6,16 @@
 //       实现：clipboard.writeImage 写入位图 → PowerShell SendKeys 模拟 Ctrl+V
 //       浮窗置顶常驻，用户切到外部输入框后即可逐张/全部粘贴（QQ 会聚合多图，
 //       微信等只收单张则用「单张插入」兜底）。
+//
+// 生命周期设计（本次重构收敛为单一职责，避免分散标志导致的状态漂移）：
+//   - 同一时刻只存在一个浮窗实例，由内部 state 统一持有；
+//   - 创建并发安全：creating 只作"在途创建"记号，成功后立即清空，杜绝陈旧
+//     Promise 被后续轮次误复用；
+//   - 尺寸/位置统一走 layoutShape()：用 setBounds 一步原子设置宽高与位置。
+//     此窗口为 transparent + resizable:false 无边框窗，在 Windows 上
+//     setSize 无法把"先前展开过"的窗口缩回（只设尺寸、位置错乱），
+//     setBounds 一起设置才可靠——这是"第二轮浮窗卡成展开大面板、FAB 消失"
+//     的真根因。
 // ============================================
 
 const DPI = 96;
@@ -48,14 +58,13 @@ function createScanModule({
     app, path, fs, log, spawn, assetsDir, getMainWindow
 }) {
 
-    /** @type {BrowserWindow | null} */
-    let win = null;
-    /** @type {Promise<BrowserWindow> | null} 创建中的浮窗（防并发重复建） */
-    let creating = null;
-    /** @type {{ data: string, dataUrl?: string, name?: string }[]} 当前待插入的图片（dataURL） */
-    let images = [];
-    /** @type {'collapsed' | 'expanded'} 浮窗当前形态 */
-    let shape = 'collapsed';
+    // ---- 模块级状态：浮窗实例、形态、待插入图片（单一数据源） ----
+    const state = {
+        win: null,                // 浮窗实例（同一时刻唯一）
+        creating: null,           // 在途创建 Promise，创建完成后立即清空
+        images: [],               // 当前待插入的图片（dataURL）
+        shape: 'collapsed'        // 当前形态：'collapsed' | 'expanded'
+    };
 
     /** 取浮窗应停靠的工作区（跟随主窗口所在屏幕） */
     function workArea() {
@@ -68,17 +77,6 @@ function createScanModule({
         } catch (e) {
             return null;
         }
-    }
-
-    /** 左下角停靠：收缩按钮贴工作区左下角 */
-    function positionWindow(w) {
-        const wa = workArea();
-        if (!wa) return;
-        const [bw] = w.getSize();
-        w.setPosition(
-            Math.round(wa.x + MARGIN),
-            Math.round(wa.y + wa.height - bw - MARGIN)
-        );
     }
 
     // ---- 跨应用插入：写剪贴板位图 + PowerShell SendKeys 模拟 Ctrl+V ----
@@ -103,7 +101,7 @@ function createScanModule({
     }
 
     async function insertIndex(idx) {
-        const img = images[idx];
+        const img = state.images[idx];
         if (!img || !img.data || !img.data.startsWith('data:image/')) {
             return { ok: false, error: '图片数据无效' };
         }
@@ -122,10 +120,11 @@ function createScanModule({
         }
     }
 
-    function createWindowInternal() {
+    /** 创建浮窗窗口（show:false，交由 layoutShape/open 显示） */
+    function createWindow() {
         const htmlPath = path.join(assetsDir, 'scan-floater.html');
         const preloadPath = path.join(assetsDir, 'scan-floater-preload.js');
-        win = new BrowserWindow({
+        const w = new BrowserWindow({
             width: SIZE_COLLAPSED.w,
             height: SIZE_COLLAPSED.h,
             frame: false,
@@ -150,60 +149,79 @@ function createScanModule({
                 spellcheck: false
             }
         });
-        win.setAlwaysOnTop(true);
+        w.setAlwaysOnTop(true);
         // 不抢焦点：用户操作外部应用时浮窗只是提示，不打断输入焦点
-        win.setFocusable(false);
+        w.setFocusable(false);
 
-        win.on('closed', () => { win = null; creating = null; });
-        win.loadFile(htmlPath);
-        return Promise.resolve(win);
+        state.win = w;             // 登记为当前唯一浮窗实例，供后续生命周期函数引用
+        w.on('closed', () => {
+            if (state.win === w) state.win = null;
+        });
+        w.loadFile(htmlPath);
+        return w;
     }
 
+    /** 确保存在可用窗口，返回 Promise（并发安全；在途创建成功后立即清空 creating） */
     function ensureWindow() {
-        if (win && !win.isDestroyed()) return Promise.resolve(win);
-        if (!creating) {
-            creating = createWindowInternal();
-            creating.catch((e) => log.error('[scan] 创建浮窗失败:', e));
+        if (state.win && !state.win.isDestroyed()) return Promise.resolve(state.win);
+        if (!state.creating) {
+            state.creating = Promise.resolve(createWindow());
+            state.creating.then(() => { state.creating = null; })
+                .catch(() => { state.creating = null; });
         }
-        return creating;
+        return state.creating;
     }
 
-    /** 更新浮窗形态并配合窗口 resize
-     *  收缩：贴左下角的小按钮；展开：以左下角为锚，面板从按钮位置向上浮起 */
-    function setShape(s) {
-        shape = s === 'expanded' ? 'expanded' : 'collapsed';
-        if (!win || win.isDestroyed()) return { ok: false };
+    /** 把浮窗按指定形态设尺寸并贴左工作区下沿，然后显示（不抢输入焦点）。
+     *  用 setBounds 一步原子设置宽高与位置——此窗口为 transparent+resizable:false 无边框窗，
+     *  在 Windows 上单独 setSize 缩回先前展开过的尺寸不可靠（实际不生效），
+     *  而 setBounds 一起设置可避免尺寸吞掉、位置错乱。 */
+    function layoutShape(w, shapeName) {
+        const size = shapeName === 'expanded' ? SIZE_EXPANDED : SIZE_COLLAPSED;
         const wa = workArea();
-        if (!wa) return { ok: false };
-        const size = shape === 'expanded' ? SIZE_EXPANDED : SIZE_COLLAPSED;
-        win.setSize(size.w, size.h);
-        // 锚定左下角：面板底边贴工作区底，向左下角对齐并向上（垂直方向）生长；
-        // 高度超屏时贴顶并保证不越出工作区底
+        if (!wa) return false;
         const left = wa.x + MARGIN;
         let top = wa.y + wa.height - MARGIN - size.h;
         if (top < wa.y) top = wa.y;
-        win.setPosition(Math.round(left), Math.round(top));
-        return { ok: true };
+        w.setBounds({ x: Math.round(left), y: Math.round(top), width: size.w, height: size.h });
+        w.showInactive();
+        return true;
     }
 
-    /** 打开/刷新浮窗：清空待插入数据，展示为收缩按钮 */
-    async function open(imgs) {
-        images = Array.isArray(imgs) ? imgs.map(d => (typeof d === 'string' ? { data: d } : d)) : [];
-        await ensureWindow();
-        if (!win || win.isDestroyed()) return { ok: false, error: '浮窗创建失败' };
-        win.setFocusable(false);
-        if (!win.isVisible()) {
-            positionWindow(win);
-            win.showInactive();
+    /** 广播最新数据给浮窗渲染层（渲染层据此拉取唯一数据源） */
+    function broadcast() {
+        const w = state.win;
+        if (w && !w.isDestroyed() && w.webContents) {
+            w.webContents.send('scan:data', { count: state.images.length });
         }
-        // 让浮窗渲染层拉取最新数据并锚定收缩态
-        win.webContents.send('scan:data', { count: images.length });
-        return { ok: true, count: images.length };
+    }
+
+    /** 打开/刷新浮窗：重置数据源 → 建窗 → 复位收缩且锚定左下角 → 显示 → 广播 */
+    async function open(imgs) {
+        state.images = Array.isArray(imgs) ? imgs.map(d => (typeof d === 'string' ? { data: d } : d)) : [];
+        await ensureWindow();
+        const w = state.win;
+        if (!w || w.isDestroyed()) return { ok: false, error: '浮窗创建失败' };
+        // 每次打开都回到"收缩小按钮"形态并贴左下角，避免复用窗口停留在上次的展开态，
+        // 或新建窗口因未定位而落在屏幕中央（被主窗口全屏表单盖住而无法点击）。
+        state.shape = 'collapsed';
+        layoutShape(w, 'collapsed');
+        broadcast();
+        return { ok: true, count: state.images.length };
+    }
+
+    /** 更新浮窗形态并联动窗口 resize，锚定左下角向上生长 */
+    function setShape(s) {
+        state.shape = s === 'expanded' ? 'expanded' : 'collapsed';
+        const w = state.win;
+        if (!w || w.isDestroyed()) return { ok: false };
+        layoutShape(w, state.shape);
+        return { ok: true };
     }
 
     /** 保存到桌面「相机扫描/扫描_YYYYMMDD/」 */
     function saveToDesktop(input) {
-        const imgs = Array.isArray(input) ? input : images;
+        const imgs = Array.isArray(input) ? input : state.images;
         if (!imgs.length) return { ok: false, error: '没有可保存的图片' };
         let dir;
         try {
@@ -232,10 +250,10 @@ function createScanModule({
 
     /** 关闭/销毁浮窗 */
     function close() {
-        images = [];
-        if (win && !win.isDestroyed()) { win.destroy(); }
-        win = null;
-        creating = null;
+        state.images = [];
+        if (state.win && !state.win.isDestroyed()) { state.win.destroy(); }
+        state.win = null;
+        state.creating = null;
     }
 
     return {
@@ -244,8 +262,8 @@ function createScanModule({
         setShape,
         insertIndex,
         saveToDesktop,
-        getImages: () => images,
-        getShape: () => shape
+        getImages: () => state.images,
+        getShape: () => state.shape
     };
 }
 
