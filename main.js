@@ -28,6 +28,7 @@ const { createSidecarModule } = require('./main/sidecar');
 const { createBackupModule } = require('./main/backup');
 const { createFloatingModule } = require('./main/floating');
 const { createSolveModule } = require('./main/solve');
+const { createScanModule } = require('./main/scan');
 const { createCipherModule } = require('./main/data-cipher');
 const { createDataStore } = require('./main/data-store');
 const { createWindowModule } = require('./main/window');
@@ -73,6 +74,7 @@ if (!gotTheLock) {
     let backup = null;
     let floating = null;
     let solve = null;
+    let scan = null;
     let cipher = null;
     let store = null;
     let windowMod = null;
@@ -204,6 +206,13 @@ if (!gotTheLock) {
             getMainWindow: () => mainWindowRef.value
         });
 
+        scan = createScanModule({
+            BrowserWindow, screen, clipboard, nativeImage,
+            app, path, fs, log, spawn,
+            assetsDir: __dirname,
+            getMainWindow: () => mainWindowRef.value
+        });
+
         // 协议/文档在线同步（三级兜底 + SHA-256 比对 + 本地缓存），不阻塞启动
         docsSync = createDocsSync({ app, fs, path, crypto, net, log });
 
@@ -220,7 +229,7 @@ if (!gotTheLock) {
         // ---- IPC 胶水层 ----
         setupIpc({
             ipcMain, clipboard, shell, log, store,
-            archive, bg, autoLaunch, sidecar, backup, floating, solve, cipher, docsSync,
+            archive, bg, autoLaunch, sidecar, backup, floating, solve, scan, cipher, docsSync,
             qweather, updater,
             getMainWindow: () => mainWindowRef.value,
             getQqConfig,

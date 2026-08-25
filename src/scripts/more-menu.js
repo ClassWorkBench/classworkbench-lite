@@ -111,6 +111,7 @@
         const settingsBtn = document.getElementById('openSettingsBtn');
         const searchBtn = document.getElementById('searchHomeworkBtn');
         const solveBtn = document.getElementById('solveSearchBtn');
+        const scanBtn = document.getElementById('scanBtn');
 
         if (exportBtn) exportBtn.addEventListener('click', copyLayoutImage);
         if (solveBtn) {
@@ -120,6 +121,16 @@
                     window.AppSolve.open();
                 } else {
                     toast('拍照搜题模块未加载');
+                }
+            });
+        }
+        if (scanBtn) {
+            scanBtn.addEventListener('click', () => {
+                closeMenu();
+                if (window.AppScan && typeof window.AppScan.open === 'function') {
+                    window.AppScan.open();
+                } else {
+                    toast('相机扫描模块未加载');
                 }
             });
         }

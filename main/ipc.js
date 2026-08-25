@@ -28,7 +28,7 @@
  */
 function setupIpc({
     ipcMain, clipboard, shell, log, store,
-    archive, bg, autoLaunch, sidecar, backup, floating, solve, cipher, docsSync, qweather, updater,
+    archive, bg, autoLaunch, sidecar, backup, floating, solve, scan, cipher, docsSync, qweather, updater,
     getMainWindow, getQqConfig, fs, path, app
 }) {
 
@@ -316,6 +316,28 @@ function setupIpc({
             return { success: false, error: e.message || String(e) };
         }
     });
+
+    // ===== 相机多页扫描：跨应用插入浮窗 + 保存 =====
+    // 打开/刷新浮窗（imgs 为 dataURL 数组）
+    ipcMain.handle('scan:open', (_event, imgs) => scan.open(imgs));
+
+    // 关闭/销毁浮窗
+    ipcMain.handle('scan:close', () => scan.close());
+
+    // 切换浮窗形态（collapsed | expanded），并联动窗口 resize
+    ipcMain.handle('scan:shape', (_event, s) => scan.setShape(s));
+
+    // 插入第 idx 张图到当前前台窗口（写剪贴板 + 模拟 Ctrl+V）
+    ipcMain.handle('scan:insert', async (_event, idx) => scan.insertIndex(idx));
+
+    // 浮窗侧保存：存主进程持有的待插入清单
+    ipcMain.handle('scan:save', () => scan.saveToDesktop());
+
+    // 面板侧直接保存（传入 dataURL 数组）
+    ipcMain.handle('scan:saveNow', (_event, imgs) => scan.saveToDesktop(imgs));
+
+    // 浮窗 init：拉取待插入图片列表（仅回传图片数据，供渲染层渲染清单）
+    ipcMain.handle('scan:list', () => ({ ok: true, images: scan.getImages() }));
 }
 
 module.exports = { setupIpc };

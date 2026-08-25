@@ -89,7 +89,7 @@ function collectJs(dir, acc = []) {
 // "已覆盖" = 在 registry 登记，或被任一 HTML 页面显式 <script> 引用。
 // 覆盖两个独立入口：index.html（走 registry 统一加载）与 floating.html（浮窗独立加载）。
 const covered = new Set(REGISTRY.map((e) => norm(e.file)));
-for (const htmlFile of ['index.html', 'floating.html']) {
+for (const htmlFile of ['index.html', 'floating.html', 'scan-floater.html']) {
     const p = join(root, htmlFile);
     if (!existsSync(p)) continue;
     for (const m of readFileSync(p, 'utf8').matchAll(/<script[^>]+src=["']([^"']+)["'][^>]*>/g)) {

@@ -3554,6 +3554,93 @@ body.reduce-anim .cp-pop {
 .solve-btns { margin-top: 2px; }
 .solve-btns [hidden] { display: none !important; }
 
+/* ---------- 相机扫描：多页模式（预览 + 侧边缩略图文档条） ---------- */
+.scan-stage {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+}
+.scan-stage .solve-preview {
+    flex: 1;
+    min-width: 0;
+}
+.scan-strip {
+    width: 96px;
+    flex: none;
+    max-height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 2px;
+}
+.scan-strip:not(:has(.scan-strip-item)) {
+    background:
+        repeating-linear-gradient(45deg, rgba(0,0,0,.04) 0 8px, transparent 8px 16px);
+    border: 1.5px dashed rgba(0, 0, 0, 0.14);
+    border-radius: 12px;
+    color: rgba(0, 0, 0, 0.28);
+    font-size: 0.72rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 6px;
+}
+.scan-strip:not(:has(.scan-strip-item))::after {
+    content: "已拍页面会堆在这里";
+}
+.scan-strip-item {
+    position: relative;
+    width: 92px;
+    height: 69px;
+    flex: none;
+    border-radius: 9px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    background: #fff;
+}
+.scan-strip-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #fff;
+}
+.scan-strip-del {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    z-index: 2;
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    padding: 0;
+}
+.scan-strip-del:hover { background: rgba(210, 60, 40, 0.9); }
+.scan-strip-idx {
+    position: absolute;
+    left: 3px;
+    bottom: 3px;
+    z-index: 2;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 7px;
+    padding: 0 5px;
+    line-height: 1.5;
+}
+.scan-strip::-webkit-scrollbar { width: 6px; }
+.scan-strip::-webkit-scrollbar-thumb { background: rgba(0,0,0,.18); border-radius: 3px; }
+
 /* 拍照搜题 · 画面实时预览（旋转 + 镜像，替换原箭头示意图） */
 .orient-row { display: flex; gap: 14px; align-items: flex-start; }
 .orient-preview {

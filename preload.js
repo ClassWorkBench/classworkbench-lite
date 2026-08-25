@@ -145,4 +145,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
         // 关闭搜题窗口
         close: () => ipcRenderer.invoke('solve:close'),
     },
+
+    // ---- 相机多页扫描：置顶浮窗跨应用插入 + 桌面保存 ----
+    scan: {
+        // 打开/刷新浮窗（imgs 为 dataURL 数组）
+        open: (imgs) => ipcRenderer.invoke('scan:open', imgs),
+        // 关闭/销毁浮窗
+        close: () => ipcRenderer.invoke('scan:close'),
+        // 切换浮窗形态（collapsed | expanded）
+        shape: (s) => ipcRenderer.invoke('scan:shape', s),
+        // 插入第 idx 张图到当前前台窗口（写剪贴板 + 模拟 Ctrl+V）
+        insert: (idx) => ipcRenderer.invoke('scan:insert', idx),
+        // 全部以文件形式保存；浮窗持有清单时可省略参数，面板侧可传入 dataURL 数组
+        save: (imgs) => imgs
+            ? ipcRenderer.invoke('scan:saveNow', imgs)
+            : ipcRenderer.invoke('scan:save'),
+    },
 });
