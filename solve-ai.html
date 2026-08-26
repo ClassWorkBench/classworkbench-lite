@@ -3,61 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 使用系统窗口标题栏（非客户区），窗口标题统一为「AI 搜题」 -->
     <title>AI 搜题</title>
-    <!-- 内嵌 AI 搜题容器：顶部自绘标题栏 + 下方双 WebContentsView 按需切换 -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self';">
     <style>
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #10161d; font-family: 'Microsoft YaHei', sans-serif; }
-        .solve-db-bar {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 0 12px 0 16px;
-            -webkit-app-region: drag;
-            background: linear-gradient(135deg, #1b2733, #10161d);
-            color: #e8eef4;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            user-select: none;
-            z-index: 10;
-        }
-        .solve-db-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.2px; }
-        .solve-db-title img { width: 18px; height: 18px; }
-        .solve-db-status { font-size: 11px; opacity: 0.55; margin-left: 4px; }
-        .solve-db-spacer { flex: 1; }
-        .solve-db-btn {
-            -webkit-app-region: no-drag;
-            width: 32px; height: 32px;
-            border: none; border-radius: 8px;
-            background: transparent;
-            color: #cbd6e0;
-            font-size: 15px;
-            line-height: 1;
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            font-family: inherit;
-        }
-        .solve-db-btn:hover { background: rgba(255, 255, 255, 0.1); }
-        .solve-db-btn.close:hover { background: rgba(232, 84, 84, 0.25); color: #ffb4b4; }
-        /* WebContentsView 从 48px 开始覆盖，无需内容；占位仅为语义清晰 */
-        .solve-db-host { position: fixed; top: 48px; left: 0; right: 0; bottom: 0; }
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #10161d; }
     </style>
 </head>
 <body>
-    <div class="solve-db-bar">
-        <div class="solve-db-title">
-            <img src="emoji/camera_color.svg" alt="📷">
-            <span id="solveDbTitleText">AI 搜题</span>
-            <span class="solve-db-status" id="solveDbStatus">正在加载页面（首次稍慢）…</span>
-        </div>
-        <div class="solve-db-spacer"></div>
-        <button class="solve-db-btn" id="solveDbMin" type="button" title="最小化" aria-label="最小化">—</button>
-        <button class="solve-db-btn close" id="solveDbClose" type="button" title="关闭" aria-label="关闭">✕</button>
-    </div>
-    <div class="solve-db-host" id="solveDbHost"></div>
-    <script src="solve-ai.js"></script>
+    <!-- 服务页面由主进程的 WebContentsView 铺满承载，本页仅作背景容器 -->
 </body>
 </html>

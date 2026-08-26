@@ -55,7 +55,7 @@ const PROVIDERS = {
     }
 };
 const DEFAULT_PROVIDER = 'doubao';
-const HEADER_H = 48;                 // 窗口顶部自绘标题栏高度（WebContentsView 从下方铺开）
+const HEADER_H = 0;                  // 使用系统标题栏（非客户区），WebContentsView 铺满内容区
 const LOAD_TIMEOUT_MS = 25000;       // 目标页面加载超时
 const INPUT_POLL_MS = 500;           // 输入框水合轮询间隔
 const INPUT_POLL_MAX = 40;           // 最长轮询 20s
@@ -160,14 +160,6 @@ function createSolveModule({
         } catch (e) { /* 交给系统默认定位 */ }
     }
 
-    function reportStatus(provider, loading, pasted) {
-        try {
-            if (win && !win.isDestroyed()) {
-                win.webContents.send('solve:provider-status', { provider, loading: !!loading, pasted: !!pasted });
-            }
-        } catch (_) { /* 标题栏尚未就绪，忽略 */ }
-    }
-
     function attachViewGuards() {
         const wc = view.webContents;
         wc.setWindowOpenHandler(({ url }) => {
@@ -180,8 +172,6 @@ function createSolveModule({
         wc.on('did-fail-load', (_e, code, desc) => {
             log.warn('[solve] 页面加载失败:', code, desc);
         });
-        wc.on('did-start-loading', () => reportStatus(PROVIDERS[viewProvider] && PROVIDERS[viewProvider].name, true, false));
-        wc.on('did-stop-loading', () => reportStatus(PROVIDERS[viewProvider] && PROVIDERS[viewProvider].name, false, false));
     }
 
     function clearIdleTimer() {
@@ -194,17 +184,16 @@ function createSolveModule({
         const htmlPath = path.join(assetsDir, 'solve-ai.html');
         const preloadPath = path.join(assetsDir, 'solve-ai-preload.js');
         const [mw, mh] = (main && !main.isDestroyed()) ? main.getSize() : [1000, 760];
-        const W = Math.min(1000, Math.max(720, mw - 60));
+        const W = Math.min(720, Math.max(560, mw - 60));
         const H = Math.min(760, Math.max(560, mh - 60));
 
         win = new BrowserWindow({
             width: W,
             height: H,
-            minWidth: 640,
+            minWidth: 520,
             minHeight: 480,
-            frame: false,
-            show: false,
             title: 'AI 搜题',
+            show: false,               // 预热时隐藏，待「去搜题」时才 show（后台预加载提速）
             backgroundColor: '#10161d',
             autoHideMenuBar: true,
             webPreferences: {
@@ -462,7 +451,6 @@ function createSolveModule({
             everShown = true;
             win.show();
             win.focus();
-            reportStatus(provider.name, wc.isLoading(), false);
 
             // 4) 粘贴前的额外交互（DeepSeek 点「识图模式」）
             if (provider.prePasteScript) {
@@ -496,7 +484,6 @@ function createSolveModule({
 
             saveLastProvider(providerKey);
             activeProvider = providerKey;
-            reportStatus(provider.name, false, true);
             return { ok: true, pasted };
         } catch (e) {
             log.error('[solve] 打开 ' + provider.name + ' 失败:', e);
