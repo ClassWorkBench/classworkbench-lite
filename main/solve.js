@@ -469,15 +469,22 @@ function createSolveModule({
             if (focused) {
                 wc.focus();
                 win.focus();
+                const imagesOnly = provider.verifyImagesOnly === true;
                 if (provider.pasteMode === 'synthetic') {
-                    // 豆包：只派发一次合成粘贴（确定性、不重复），OS 剪贴板留给用户手动 Ctrl+V
-                    await dispatchSyntheticPaste(wc, image.split(',')[1] || '');
+                    // 豆包：先取基线快照，再派发一次合成粘贴，随后真实校验编辑器内是否出现图片。
+                    // 合成事件对 ProseMirror 不一定生效，必须观察确认，不能只看「能否聚焦」。
+                    const baseline = await composerSnapshot(wc);
+                    const dispatched = await dispatchSyntheticPaste(wc, image.split(',')[1] || '');
+                    // 派发到编辑器后才观察；没找到输入框直接走更可靠的 file input 兜底
+                    if (dispatched) {
+                        pasted = await observeForPreview(wc, baseline, imagesOnly, 4, 2000);
+                    }
                 } else {
-                    await pasteWithRetry(wc, provider.verifyImagesOnly === true, 2, 2000);
+                    // DeepSeek 等：真实 Ctrl+V + 内部观察验证（保留原稳定路径）
+                    pasted = await pasteWithRetry(wc, imagesOnly, 2, 2000);
                 }
-                // 粘贴已派发到可见编辑器：预览渲染有延迟，图片会出现在窗口里，由用户目视确认
-                pasted = true;
             }
+            // 合成/真实粘贴校验不通过 → 直接注入页面上可见的 <input type="file"> 兜底
             if (!pasted) {
                 pasted = await injectViaFileInput(wc, image.split(',')[1] || '');
             }
