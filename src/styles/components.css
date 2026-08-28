@@ -3449,6 +3449,14 @@ body.reduce-anim .cp-pop {
     width: 100%;
     margin-inline: auto;
     flex: 0 0 auto;
+    /* 尺寸变化（拍下一页/按钮显隐/窗口缩放）丝滑过渡：苹果风格缓出贝塞尔 */
+    transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+                height 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* fitPreview 两段式实测（归零→测量→回填）的瞬间禁用过渡：
+   否则归零/回填也会被动画化，测量读到的是过渡中间值 */
+.solve-dialog .solve-preview.fitting {
+    transition: none;
 }
 .solve-head {
     display: flex;

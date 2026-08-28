@@ -127,37 +127,99 @@
     // ---- 取景框精确适配 ----
     // 为什么不用 CSS 定死：弹窗内容（缩略图带出现/消失、按钮显隐）和窗口高度都动态变化，
     // CSS 魔数（固定比例/固定 vh）在极端窗口高度下要么撑出滚动条、要么把内容压扁。
-    // 算法（两段式实测，不枚举兄弟元素——gap/隐藏项/边框的测量陷阱太多）：
-    //   1. 取景框临时归零 → 弹窗此刻的实际总高 = 其余内容的精确总高（一切自动正确）
+    // 测量（仅显式 force 进入，两段式实测，不枚举兄弟元素——gap/隐藏项/边框陷阱太多）：
+    //   1. 取景框临时归零（过渡禁用）→ 弹窗此刻的实际总高 = 其余内容的精确总高
     //   2. 限高 - 该值 = 可用高度，再按真实视频流比例求宽高
-    // 同步完成，ResizeObserver 不会看到中间态，无振荡、无收敛问题。
-    function fitPreview() {
+    // 非测量快速路径：ResizeObserver 回调只做纯计算（缓存余高 + 实时限高），
+    // 物理切断「测量改布局 → RO 触发 → 再测量」的自激振荡（模糊关闭时弹窗不在合成层，必现疯狂抖动）。
+    // 动画（丝滑的关键，实测 Chromium 行为）：
+    //   - 同帧「禁过渡+设新值」在真实布局链路里不启动过渡 → 最终应用推迟到 rAF
+    //   - 测量后同步恢复过渡能力，新目标值经 CSS 过渡从当前渲染位置自然重启 → 无缝
+    //   - 目标未变时不触碰样式 → 不打断进行中的过渡
+    // 记忆：真实视频比例存入设置，视频就绪前用记忆比例，打开瞬间不再 4:3→16:9 突跳
+    function fitPreview(force) {
         const c = current;
         if (!c || !c.dialog || !c.preview) return;
         const dlg = c.dialog;
         const pv = c.preview;
-        const st = getComputedStyle(dlg);
-        // 第一步：归零并同步读高（读取 offsetHeight 触发 reflow，拿到确定性数值）
+
+        // 快速路径（非 force）：不测量，直接用「缓存余高 + 实时限高/宽度」算目标。
+        // 窗口缩放会改 maxHeight/clientWidth（computeTarget 实时读）→ 快速路径也能正确适配。
+        // 关键：全测量的「归零→回填」本身会让弹窗高度产生亚像素变化 → 触发 ResizeObserver →
+        // 若 RO 回调再走全测量就形成自激振荡（表现为弹窗疯狂抖动，且模糊关闭时弹窗
+        // 不在合成层、亚像素通知不再被吸收，回路必然点燃）。因此测量只允许显式 force 进入。
+        if (!force && c._restH) {
+            const quick = computeTarget(c, c._restH);
+            applyTarget(c, quick);
+            return;
+        }
+
+        // 完整测量（仅显式 force：renderPages / resize / animationend / 首次）：
+        // 禁过渡 + 归零 + 同步读高（读取 offsetHeight 触发 reflow，拿到确定性数值）。
+        // 副作用控制（关键！曾因此出「打开即冻结在小尺寸」的 bug）：
+        //   - 归零必须禁过渡，否则坍缩过程被动画化、测到垃圾值
+        //   - 测完恢复「原样式值」而不是渲染中间值 cur——把 cur 写进 style 后若 applyTarget
+        //     因目标未变早退（合法，不打断过渡），style 就永远停在过渡中间帧、
+        //     .fitting(transition:none) 也永远残留 → 之后所有过渡死亡、尺寸冻死
+        //   - .fitting 同步移除：配合 applyTarget 下一帧 rAF 设新值，可靠触发贝塞尔过渡
+        const prevW = pv.style.width;
+        const prevH = pv.style.height;
+        pv.classList.add('fitting');
         pv.style.width = '0px';
         pv.style.height = '0px';
         const restH = dlg.offsetHeight;   // border-box 口径，与 max-height 同口径
+        c._restH = restH;                 // 缓存：此后所有非 force 调用复用（内容变化由 renderPages 强制刷新）
+        pv.style.width = prevW;           // 恢复原样式值（布局回到测量前状态）
+        pv.style.height = prevH;
+        pv.offsetWidth;
+        pv.classList.remove('fitting');   // 同步恢复过渡能力
+
+        applyTarget(c, computeTarget(c, restH));
+        // 记忆真实摄像头比例（未旋转的原始值），供下次打开在视频就绪前直接使用
+        if (c.video.videoWidth && c.video.videoHeight) {
+            const base = c.video.videoWidth / c.video.videoHeight;
+            if (Math.abs((c.sol.previewAR || 0) - base) > 0.01) {
+                c.sol.previewAR = +base.toFixed(4);
+                window.AppStorage.saveSettings().catch(() => {});
+            }
+        }
+    }
+
+    // 应用目标尺寸：_fitW/_fitH 同步更新（快速路径的比较立即生效，不等动画回调），
+    // 实际样式推迟到 rAF——同帧「设新值」在测量刚恢复过渡的链路里不启动过渡，
+    // 推迟一帧则可靠触发贝塞尔过渡（CSS 原生从当前渲染位置平滑过渡到新目标）
+    function applyTarget(c, t) {
+        const pv = c.preview;
+        if (t.w === c._fitW && t.h === c._fitH) return;   // 目标未变：不触碰样式、不打断进行中的过渡
+        c._fitW = t.w; c._fitH = t.h;
+        c._pendT = t;   // 多次调用竞态：只应用最后一次
+        requestAnimationFrame(() => {
+            if (current !== c || !c.preview) return;
+            if (c._pendT !== t) return;    // 已有更新的目标，让位
+            c._pendT = null;
+            pv.classList.remove('fitting');   // 兜底：确保过渡能力已恢复（正常在测量尾部已同步移除）
+            pv.style.width = t.w + 'px';
+            pv.style.height = t.h + 'px';
+            pv.style.aspectRatio = 'auto';    // 接管基类 4:3，按显式宽高渲染
+        });
+    }
+
+    // 由「余高 + 限高 + 视频流比例」求取景框目标尺寸
+    function computeTarget(c, restH) {
+        const dlg = c.dialog;
+        const st = getComputedStyle(dlg);
         let maxDlgH = parseFloat(st.maxHeight);
         if (!maxDlgH || !isFinite(maxDlgH)) maxDlgH = window.innerHeight;
         const padX = parseFloat(st.paddingLeft) + parseFloat(st.paddingRight);
         const availW = dlg.clientWidth - padX;
         let ar = (c.video.videoWidth && c.video.videoHeight)
             ? c.video.videoWidth / c.video.videoHeight
-            : 4 / 3;
+            : (c.sol.previewAR || 4 / 3);   // 视频未就绪：用上次会话记忆的摄像头比例，避免就绪后突跳
         // 旋转 90/270 时画面与输出图都是竖向 → 比例取倒数
         if ((c.sol.rotation || 0) % 180 !== 0) ar = 1 / ar;
-        // 第二步：限高内的剩余空间都给取景框（140 保底：极小窗口下至少能看清画面）
+        // 限高内的剩余空间都给取景框（140 保底：极小窗口下至少能看清画面）
         const h = Math.floor(Math.max(140, Math.min(maxDlgH - restH, availW / ar)));
-        const w = Math.floor(h * ar);
-        pv.style.width = w + 'px';
-        pv.style.height = h + 'px';
-        pv.style.aspectRatio = 'auto';   // 接管基类 4:3，按显式宽高渲染
-        if (c._fitW === w && c._fitH === h) return;   // 尺寸未变：ResizeObserver 自激励到此收敛
-        c._fitW = w; c._fitH = h;
+        return { w: Math.floor(h * ar), h };
     }
 
     // 弹窗内容或窗口尺寸变化（缩略图带出现、按钮显隐、窗口缩放）时重新适配
@@ -457,8 +519,8 @@
         if (c.pagesEl.scrollWidth > c.pagesEl.clientWidth) {
             c.pagesEl.scrollLeft = c.pagesEl.scrollWidth;   // scroll-behavior:smooth 平滑滚到最新
         }
-        fitPreview();   // 内容变了（缩略图增删/按钮显隐都可能经由这里）→ 主动重适配。
-                        // 弹窗被限高钉死时高度不随内容变，ResizeObserver 看不见这类变化
+        fitPreview(true);   // 内容变了（缩略图增删/按钮显隐都可能经由这里）→ 强制重测并重适配。
+                            // 弹窗被限高钉死时高度不随内容变，ResizeObserver 看不见这类变化
     }
 
     function buildPageItem(src, idx, active) {
