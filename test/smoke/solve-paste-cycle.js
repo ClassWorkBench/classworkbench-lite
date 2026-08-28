@@ -58,35 +58,39 @@ function evaluate(wsUrl, expression, awaitPromise = false) {
     });
 }
 
-// 在渲染层用 canvas 生成一张大体积、内容复杂的题目照片（非简陋底图）
+// 在渲染层用 canvas 生成 3 张不同主色调、大体积、内容复杂的题目照片（非简陋底图）
 const GEN_BIG_IMG = `(function () {
     const W = 2000, H = 1500;
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    const g = c.getContext('2d');
-    g.fillStyle = '#f5f0e8';
-    g.fillRect(0, 0, W, H);
-    // 大量浅色噪点 + 随机线段 + 文字块，制造接近真实纸张的大体积画面
-    for (let i = 0; i < 22000; i++) {
-        g.fillStyle = 'rgba(' + Math.floor(Math.random()*80+40) + ',' + Math.floor(Math.random()*80+40) + ',' + Math.floor(Math.random()*80+40) + ',' + 0.08 + ')';
-        const s = Math.random()*4 + 1;
-        g.fillRect(Math.random()*W, Math.random()*H, s, s);
+    const BGS = ['#f5f0e8', '#eef2f7', '#f7f2ec'];
+    window.__solveBigImgs = [];
+    for (let v = 0; v < BGS.length; v++) {
+        const c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        const g = c.getContext('2d');
+        g.fillStyle = BGS[v];
+        g.fillRect(0, 0, W, H);
+        for (let i = 0; i < 22000; i++) {
+            g.fillStyle = 'rgba(' + Math.floor(Math.random()*80+40) + ',' + Math.floor(Math.random()*80+40) + ',' + Math.floor(Math.random()*80+40) + ',' + 0.08 + ')';
+            const s = Math.random()*4 + 1;
+            g.fillRect(Math.random()*W, Math.random()*H, s, s);
+        }
+        g.strokeStyle = '#202020';
+        g.lineWidth = 3;
+        for (let i = 0; i < 260; i++) {
+            g.beginPath();
+            g.moveTo(Math.random()*W, Math.random()*H);
+            g.lineTo(Math.random()*W, Math.random()*H);
+            g.stroke();
+        }
+        g.fillStyle = '#1a1a1a';
+        g.font = 'bold 72px sans-serif';
+        for (let i = 0; i < 32; i++) {
+            g.fillText('例 ' + (v * 32 + i + 1) + '：x² + 3x - 4 = 0 求根（卷 ' + (v + 1) + '）', 40, 160 + i * 90, W - 80);
+        }
+        window.__solveBigImgs.push(c.toDataURL('image/png'));
     }
-    g.strokeStyle = '#202020';
-    g.lineWidth = 3;
-    for (let i = 0; i < 260; i++) {
-        g.beginPath();
-        g.moveTo(Math.random()*W, Math.random()*H);
-        g.lineTo(Math.random()*W, Math.random()*H);
-        g.stroke();
-    }
-    g.fillStyle = '#1a1a1a';
-    g.font = 'bold 72px sans-serif';
-    for (let i = 0; i < 32; i++) {
-        g.fillText('例题 ' + (i + 1) + '：x² + 3x - 4 = 0 求根', 40, 160 + i * 90, W - 80);
-    }
-    try { window.__solveBigImg = c.toDataURL('image/png'); return window.__solveBigImg.length; }
-    catch (e) { return -1; }
+    window.__solveBigImg = window.__solveBigImgs[0];   // 兼容单图轮次
+    return window.__solveBigImgs.map(function (s) { return s.length; }).join(',');
 })()`;
 
 (async () => {
@@ -101,9 +105,10 @@ const GEN_BIG_IMG = `(function () {
         }
         if (!ready) throw new Error('渲染层未就绪');
 
-        // 生成大体积图片
+        // 生成 3 张不同大体积图片
         const imgLen = await evaluate(page.webSocketDebuggerUrl, GEN_BIG_IMG);
-        if (!imgLen || imgLen < 1) { throw new Error('大图生成失败'); }
+        const imgCount = await evaluate(page.webSocketDebuggerUrl, 'window.__solveBigImgs.length');
+        if (!imgLen || imgCount < 3) { throw new Error('大图生成失败'); }
         report.push(`大体积图片数据 URL 长度: ${imgLen} bytes`);
 
         // 如果块过长会卡，先确认图能进剪贴板不崩
@@ -151,7 +156,7 @@ const GEN_BIG_IMG = `(function () {
                     const t0 = performance.now();
                     const r = await window.electronAPI.solve.open({ image: window.__solveBigImg, provider: 'deepseek' });
                     return Object.assign({}, r, { ms: Math.round(performance.now() - t0) });
-                })()`, true);
+                })()`, true).catch((e) => ({ ok: false, error: e.message || 'timeout' }));
             report.push(`DeepSeek第${round}轮 solve.open → ok=${openResult && openResult.ok}, pasted=${openResult && openResult.pasted}, ms=${openResult && openResult.ms}`);
             console.log(`open 返回:`, JSON.stringify(openResult));
             await sleep(10000);   // 等大图上传/渲染
@@ -174,11 +179,41 @@ const GEN_BIG_IMG = `(function () {
             await sleep(3000);
         }
 
+        // === 多页：images 数组一次贴多张大图进豆包 ===
+        console.log('\n=== 多页大图冒烟（豆包 images 多张一次贴入） ===');
+        for (let round = 1; round <= ROUNDS; round++) {
+            console.log(`\n----- 多页第 ${round}/${ROUNDS} 轮（传 ${3} 张） -----`);
+            const openResult = await evaluate(page.webSocketDebuggerUrl,
+                `(async () => {
+                    const t0 = performance.now();
+                    const r = await window.electronAPI.solve.open({ images: window.__solveBigImgs, provider: 'doubao' });
+                    return Object.assign({}, r, { ms: Math.round(performance.now() - t0), n: window.__solveBigImgs.length });
+                })()`, true).catch((e) => ({ ok: false, error: e.message || 'timeout' }));
+            report.push(`多页第${round}轮 open({images}) → ok=${openResult && openResult.ok}, pasted=${openResult && openResult.pasted}, n=${openResult && openResult.n}, ms=${openResult && openResult.ms}`);
+            console.log(`open 返回:`, JSON.stringify(openResult));
+            await sleep(10000);   // 等 3 张大图上传/渲染
+            const mpTargets = await fetch(`http://127.0.0.1:${PORT}/json/list`).then(r => r.json());
+            const mpTarget = mpTargets.find(t => /doubao\.com/.test(t.url));
+            if (mpTarget) {
+                const blobCount = await evaluate(mpTarget.webSocketDebuggerUrl,
+                    `Array.prototype.slice.call(document.querySelectorAll('img')).filter(function(i){var s=(i.getAttribute('src')||'');return s.indexOf('blob:')===0||/^data:image\\/(png|jpe?g|webp|gif)/.test(s);}).length`);
+                report.push(`多页第${round}轮豆包图源数=${blobCount}`);
+                console.log(`豆包图源数=${blobCount}（≥3 视为 3 张均进入）`);
+            } else {
+                report.push(`多页第${round}轮未找到豆包页面目标`);
+                console.log('✗ 未找到豆包页面目标');
+            }
+            await evaluate(page.webSocketDebuggerUrl, 'window.electronAPI.solve.close()', true);
+            await sleep(3000);
+        }
+
         console.log('\n======== 汇总 ========');
         report.forEach(r => console.log('- ' + r));
         const passed = report.filter(r => /图数=[1-9]/.test(r)).length;
-        console.log(`\n${passed > 0 ? '✓ 至少一轮出现图片，粘贴链有效' : '✗ 未在任何轮次看到编辑区图片'}`);
-        process.exitCode = passed > 0 ? 0 : 1;
+        const multiPass = report.some(r => { const m = r.match(/图源数=(\d+)/); return m && parseInt(m[1], 10) >= 3; });
+        console.log(`\n${passed > 0 ? '✓ 单图粘贴链有效' : '✗ 单图链路异常'}`);
+        console.log(`${multiPass ? '✓ 多页(3 张)一次性全部进入 AI 页面' : '✗ 多页未达 3 张全部进入'}`);
+        process.exitCode = (passed > 0 && multiPass) ? 0 : 1;
     } catch (e) {
         console.error('冒烟失败:', e.message);
         process.exitCode = 1;

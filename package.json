@@ -19,7 +19,8 @@
     "smoke:stress": "node test/smoke/stress.js",
     "smoke:stress-3mo": "node test/smoke/stress-3mo.js",
     "smoke:switch-100yr": "node test/smoke/switch-100yr.js",
-    "smoke:verify-100yr": "node test/smoke/verify-100yr.js"
+    "smoke:verify-100yr": "node test/smoke/verify-100yr.js",
+    "smoke:solve": "electron test/smoke/solve-paste.js"
   },
   "build": {
     "appId": "com.classworkbench.app",

@@ -41,7 +41,7 @@
                         <span class="solve-head-icon"><img class="emoji" src="emoji/camera_color.svg" alt="📷"></span>
                         <div class="solve-head-text">
                             <div class="solve-title">拍照搜题</div>
-                            <div class="solve-sub">展台自动扫描 → 粘贴到 AI 搜题</div>
+                            <div class="solve-sub">拍一页或「继续拍下一页」，完成后选 AI 搜题</div>
                         </div>
                     </div>
                     <div class="solve-preview" id="solvePreview">
@@ -49,6 +49,7 @@
                         <div class="solve-scan" id="solveScan" aria-hidden="true"><i class="solve-scan-line"></i></div>
                         <img class="solve-shot" id="solveShot" alt="拍摄结果" hidden>
                     </div>
+                    <div class="solve-pages" id="solvePages" aria-label="已拍页面"></div>
                     <div class="solve-status" id="solveStatus">正在打开摄像头…</div>
                     <div class="solve-opts">
                         <label class="solve-opt"><input type="checkbox" id="solveAutoCb" ${sol.autoScan ? 'checked' : ''}> 自动扫描</label>
@@ -56,7 +57,8 @@
                     <div class="dialog-btn-row solve-btns">
                         <button class="btn" id="solveCancelBtn" type="button">取消</button>
                         <button class="btn" id="solveManualBtn" type="button">手动拍照</button>
-                        <button class="btn" id="solveRescanBtn" type="button" hidden>重新扫描</button>
+                        <button class="btn primary" id="solveMoreBtn" type="button" hidden>继续拍下一页</button>
+                        <button class="btn" id="solveRescanBtn" type="button" hidden>重新扫描本页</button>
                         <button class="btn primary" id="solveGoDoubao" type="button" hidden>去豆包搜题</button>
                         <button class="btn primary" id="solveGoDeepseek" type="button" hidden>去 DeepSeek 搜题</button>
                     </div>
@@ -91,15 +93,19 @@
         current = {
             close,
             sol,
+            dialog,
             video: dialog.querySelector('#solveVideo'),
             preview: dialog.querySelector('#solvePreview'),
             scan: dialog.querySelector('#solveScan'),
             shot: dialog.querySelector('#solveShot'),
             statusEl: dialog.querySelector('#solveStatus'),
             manualBtn: dialog.querySelector('#solveManualBtn'),
+            moreBtn: dialog.querySelector('#solveMoreBtn'),
             rescanBtn: dialog.querySelector('#solveRescanBtn'),
             goDoubao: dialog.querySelector('#solveGoDoubao'),
             goDeepseek: dialog.querySelector('#solveGoDeepseek'),
+            pagesEl: dialog.querySelector('#solvePages'),
+            pages: [],
             stream: null,
             raf: 0,
             shotData: null,
@@ -114,12 +120,63 @@
         };
 
         bindControls();
+        watchLayout();
         await attachStream(current, await streamPromise);
+    }
+
+    // ---- 取景框精确适配 ----
+    // 为什么不用 CSS 定死：弹窗内容（缩略图带出现/消失、按钮显隐）和窗口高度都动态变化，
+    // CSS 魔数（固定比例/固定 vh）在极端窗口高度下要么撑出滚动条、要么把内容压扁。
+    // 算法（两段式实测，不枚举兄弟元素——gap/隐藏项/边框的测量陷阱太多）：
+    //   1. 取景框临时归零 → 弹窗此刻的实际总高 = 其余内容的精确总高（一切自动正确）
+    //   2. 限高 - 该值 = 可用高度，再按真实视频流比例求宽高
+    // 同步完成，ResizeObserver 不会看到中间态，无振荡、无收敛问题。
+    function fitPreview() {
+        const c = current;
+        if (!c || !c.dialog || !c.preview) return;
+        const dlg = c.dialog;
+        const pv = c.preview;
+        const st = getComputedStyle(dlg);
+        // 第一步：归零并同步读高（读取 offsetHeight 触发 reflow，拿到确定性数值）
+        pv.style.width = '0px';
+        pv.style.height = '0px';
+        const restH = dlg.offsetHeight;   // border-box 口径，与 max-height 同口径
+        let maxDlgH = parseFloat(st.maxHeight);
+        if (!maxDlgH || !isFinite(maxDlgH)) maxDlgH = window.innerHeight;
+        const padX = parseFloat(st.paddingLeft) + parseFloat(st.paddingRight);
+        const availW = dlg.clientWidth - padX;
+        let ar = (c.video.videoWidth && c.video.videoHeight)
+            ? c.video.videoWidth / c.video.videoHeight
+            : 4 / 3;
+        // 旋转 90/270 时画面与输出图都是竖向 → 比例取倒数
+        if ((c.sol.rotation || 0) % 180 !== 0) ar = 1 / ar;
+        // 第二步：限高内的剩余空间都给取景框（140 保底：极小窗口下至少能看清画面）
+        const h = Math.floor(Math.max(140, Math.min(maxDlgH - restH, availW / ar)));
+        const w = Math.floor(h * ar);
+        pv.style.width = w + 'px';
+        pv.style.height = h + 'px';
+        pv.style.aspectRatio = 'auto';   // 接管基类 4:3，按显式宽高渲染
+        if (c._fitW === w && c._fitH === h) return;   // 尺寸未变：ResizeObserver 自激励到此收敛
+        c._fitW = w; c._fitH = h;
+    }
+
+    // 弹窗内容或窗口尺寸变化（缩略图带出现、按钮显隐、窗口缩放）时重新适配
+    function watchLayout() {
+        const c = current;
+        if (!c || !c.dialog) return;
+        c._ro = new ResizeObserver(() => requestAnimationFrame(fitPreview));
+        c._ro.observe(c.dialog);
+        // 弹窗入场动画只改 transform（不触发 ResizeObserver），但 transform 缩放会让
+        // getBoundingClientRect 测量失真 → 动画结束后用真实布局再校准一次
+        c.dialog.addEventListener('animationend', fitPreview, { once: true });
+        window.addEventListener('resize', fitPreview);
+        requestAnimationFrame(fitPreview);
     }
 
     function bindControls() {
         const c = current;
         c.manualBtn.addEventListener('click', () => capture('manual'));
+        c.moreBtn.addEventListener('click', nextPage);
         c.rescanBtn.addEventListener('click', rescan);
         c.goDoubao.addEventListener('click', () => goto('doubao'));
         c.goDeepseek.addEventListener('click', () => goto('deepseek'));
@@ -175,6 +232,7 @@
         try {
             await c.video.play();
         } catch (_) { /* 自动播放策略已放开，正常不会走到 */ }
+        fitPreview();   // 视频元数据就绪：用真实流比例重新适配取景框
         if (current !== c) { stopTracks(c); return; }
         setStatus('摄像头就绪，等待放入题目…');
         resetScanState();
@@ -338,12 +396,37 @@
         clearTimeout(c.raf);
         c.manualBtn.hidden = true;
         c.rescanBtn.hidden = false;
+        c.moreBtn.hidden = false;
         c.goDoubao.hidden = false;
         c.goDeepseek.hidden = false;
-        setStatus('已拍摄 ✓ 确认无误后选一个服务搜题');
+        const total = c.pages.length + 1;
+        setStatus(`已拍摄第 ${total} 页 ✓ 可「继续拍下一页」累积，完成后选一个服务搜题`);
+        renderPages();   // 当前页即时滑入横向平铺预览带
+    }
+
+    // ---- 多页：把当前页定稿入列表，翻到下一页继续拍 ----
+    function nextPage() {
+        const c = current;
+        if (!c || !c.shotData) return;
+        c.pages.push(c.shotData);   // 当前页定稿
+        c.shotData = null;
+        startFraming();
+        renderPages();
+        setStatus(`已拍 ${c.pages.length} 页，请对准下一页…`);
     }
 
     function rescan() {
+        const c = current;
+        if (!c) return;
+        c.shotData = null;          // 重拍当前页（已定稿的前页不受影响）
+        const hadPages = c.pages.length > 0;
+        startFraming();
+        renderPages();   // 当前页从平铺预览带移除
+        setStatus(hadPages ? `已拍 ${c.pages.length} 页，重拍本页…` : '等待放入题目…');
+    }
+
+    // 恢复相机实时预览 + 扫描循环（多页翻页 / 本页重拍共用）
+    function startFraming() {
         const c = current;
         if (!c) return;
         c.shot.hidden = true;
@@ -351,27 +434,56 @@
         c.scan.classList.toggle('hidden', !c.sol.autoScan);
         c.manualBtn.hidden = false;
         c.rescanBtn.hidden = true;
+        c.moreBtn.hidden = true;
         c.goDoubao.hidden = true;
         c.goDeepseek.hidden = true;
+        clearTimeout(c.raf);
         resetScanState();
-        c.raf = setTimeout(scanLoop, SAMPLE_MS);
-        updateScanStatus();
+        if (c.sol.autoScan) c.raf = setTimeout(scanLoop, SAMPLE_MS);
+    }
+
+    // 渲染横向平铺预览带：已定稿页 + 当前刚拍页（末位高亮 + 滑入 + 滚到最新）
+    function renderPages() {
+        const c = current;
+        if (!c || !c.pagesEl) return;
+        c.pagesEl.innerHTML = '';
+        c.pages.forEach((src, i) => {
+            c.pagesEl.appendChild(buildPageItem(src, i + 1, false));
+        });
+        if (c.shotData) {
+            c.pagesEl.appendChild(buildPageItem(c.shotData, c.pages.length + 1, true));
+        }
+        c.pagesEl.classList.toggle('empty', c.pages.length === 0 && !c.shotData);
+        if (c.pagesEl.scrollWidth > c.pagesEl.clientWidth) {
+            c.pagesEl.scrollLeft = c.pagesEl.scrollWidth;   // scroll-behavior:smooth 平滑滚到最新
+        }
+        fitPreview();   // 内容变了（缩略图增删/按钮显隐都可能经由这里）→ 主动重适配。
+                        // 弹窗被限高钉死时高度不随内容变，ResizeObserver 看不见这类变化
+    }
+
+    function buildPageItem(src, idx, active) {
+        const item = document.createElement('div');
+        item.className = 'solve-pages-item' + (active ? ' is-active' : '');
+        item.innerHTML = `<span class="scan-strip-idx">${idx}</span><img src="${src}" alt="第${idx}页">`;
+        return item;
     }
 
     // ---- 半自动：去 AI 服务搜题 ----
     async function goto(provider) {
         const c = current;
-        if (!c || !c.shotData) return;
+        if (!c) return;
+        const imgs = c.pages.concat(c.shotData ? [c.shotData] : []);
+        if (!imgs.length) return;
         if (!window.electronAPI || typeof window.electronAPI.solve !== 'object' || typeof window.electronAPI.solve.open !== 'function') {
             toast('当前环境不支持内嵌 AI 搜题');
             return;
         }
         const name = provider === 'deepseek' ? 'DeepSeek' : '豆包';
-        setStatus(`正在打开 ${name} 并粘贴图片…`);
+        setStatus(`正在打开 ${name} 并粘贴 ${imgs.length} 张图片…`);
         try {
-            const res = await window.electronAPI.solve.open({ image: c.shotData, provider });
+            const res = await window.electronAPI.solve.open({ images: imgs, provider });
             if (res && res.ok) {
-                toast(res.pasted ? `图片已粘贴到${name}，请点击发送` : `${name}已打开，请点击输入框后按 Ctrl+V 粘贴`);
+                toast(res.pasted ? `${imgs.length} 张图片已粘贴到${name}，请点击发送` : `${name}已打开，请点击输入框后按 Ctrl+V 粘贴`);
                 c.close();
             } else {
                 toast((res && res.error) || `打开${name}失败`);
@@ -395,6 +507,8 @@
         if (!c) return;
         c.stopped = true;
         clearTimeout(c.raf);
+        if (c._ro) { c._ro.disconnect(); c._ro = null; }
+        window.removeEventListener('resize', fitPreview);
         stopTracks(c);
         current = null;
         // 表单关闭且从未搜题：让主进程释放未显示的预热窗口，立即还内存
