@@ -62,6 +62,37 @@ const INPUT_POLL_MAX = 40;           // 最长轮询 20s
 const IDLE_DESTROY_MS = 5 * 60 * 1000; // 窗口隐藏 5 分钟无人使用 → 销毁释放内存
 
 /**
+ * 构造合成粘贴脚本（模块级导出，供冒烟测试同源验证，确保测试的就是线上逻辑）。
+ * mode 决定 DataTransfer 只携带一种格式，避免编辑器同时处理 File 与 HTML 两条
+ * 解析路径导致重复粘贴两张图：
+ *   'file' — 只携带 File（clipboardData.files）
+ *   'html' — 只携带 HTML <img>（getData('text/html')）
+ * 不传 mode 则两种都带（旧行为，贪婪编辑器两条路都走会重复插入两张）。
+ */
+function buildSyntheticPasteScript(imageBase64, mode) {
+    const fileCode = mode === 'html' ? '' :
+        `const file = new File([bytes], 'question.png', { type: 'image/png' }); dt.items.add(file);`;
+    const htmlCode = mode === 'file' ? '' :
+        `try { dt.setData('text/html', '<img src="data:image/png;base64,' + b64 + '">'); } catch (_) {}`;
+    return `(() => {
+        const el = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea');
+        if (!el) return false;
+        try {
+            const b64 = '${imageBase64}';
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const dt = new DataTransfer();
+            ${fileCode}
+            ${htmlCode}
+            const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+            el.dispatchEvent(ev);
+            return true;
+        } catch (e) { return false; }
+    })()`;
+}
+
+/**
  * @param {object} opts
  * @param {object} opts.BrowserWindow
  * @param {object} opts.WebContentsView
@@ -368,31 +399,14 @@ function createSolveModule({
         return false;
     }
 
-    /**
-     * 合成粘贴（豆包专用）：直接给 ProseMirror 编辑器派发一次带图片的 paste 事件。
-     * DataTransfer 同时携带 File（clipboardData.files）与 HTML <img>（getData('text/html')），
-     * 无论豆包走哪条解析路径都能收到图片；只派发一次，避免重复粘贴。
-     */
-    async function dispatchSyntheticPaste(wc, imageBase64) {
-        const script = `(() => {
-            const el = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea');
-            if (!el) return false;
-            try {
-                const b64 = '${imageBase64}';
-                const bin = atob(b64);
-                const bytes = new Uint8Array(bin.length);
-                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-                const file = new File([bytes], 'question.png', { type: 'image/png' });
-                const dt = new DataTransfer();
-                dt.items.add(file);
-                try { dt.setData('text/html', '<img src="data:image/png;base64,' + b64 + '">'); } catch (_) {}
-                const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
-                el.dispatchEvent(ev);
-                return true;
-            } catch (e) { return false; }
-        })()`;
-        try { return !!(await wc.executeJavaScript(script, true)); } catch (_) { return false; }
-    }
+/**
+ * 合成粘贴（豆包专用）：直接给编辑器派发一次带图片的 paste 事件。
+ * 脚本由模块级 buildSyntheticPasteScript 构造，mode 语义见其注释。
+ */
+async function dispatchSyntheticPaste(wc, imageBase64, mode) {
+    const script = buildSyntheticPasteScript(imageBase64, mode);
+    try { return !!(await wc.executeJavaScript(script, true)); } catch (_) { return false; }
+}
 
     /** 兜底：直接给页面上可见的 <input type="file"> 注入图片文件 */
     async function injectViaFileInput(wc, imageBase64) {
@@ -458,12 +472,11 @@ function createSolveModule({
                 await sleep(provider.prePasteSettleMs || 500);
             }
 
-            // 5) 剪贴板：同时写入位图 + HTML(<img>)，兼顾普通输入框与 ProseMirror 富文本
+            // 5) 剪贴板：只写位图（单格式）。双格式会让编辑器同时走 File 与 HTML 两条
+            //    解析路径而重复粘贴两张图；HTML 通道在 Ctrl+V 未生效时再补写。
+            //    位图留在剪贴板，也作为用户手动 Ctrl+V 的兜底。
             const native = nativeImage.createFromDataURL(image);
-            clipboard.write({
-                image: native,
-                html: `<img src="${image}">`
-            });
+            clipboard.write({ image: native });
             const focused = await focusInput(wc, provider);
             let pasted = false;
             if (focused) {
@@ -471,17 +484,38 @@ function createSolveModule({
                 win.focus();
                 const imagesOnly = provider.verifyImagesOnly === true;
                 if (provider.pasteMode === 'synthetic') {
-                    // 豆包：先取基线快照，再派发一次合成粘贴，随后真实校验编辑器内是否出现图片。
-                    // 合成事件对 ProseMirror 不一定生效，必须观察确认，不能只看「能否聚焦」。
-                    const baseline = await composerSnapshot(wc);
-                    const dispatched = await dispatchSyntheticPaste(wc, image.split(',')[1] || '');
-                    // 派发到编辑器后才观察；没找到输入框直接走更可靠的 file input 兜底
+                    // 豆包：DataTransfer 每次只带一种格式，分两轮尝试。
+                    // 旧行为同时携带 File + HTML，编辑器若两条解析路径都走会重复粘贴两张图。
+                    let baseline = await composerSnapshot(wc);
+                    let dispatched = await dispatchSyntheticPaste(wc, image.split(',')[1] || '', 'file');
                     if (dispatched) {
-                        pasted = await observeForPreview(wc, baseline, imagesOnly, 4, 2000);
+                        pasted = await observeForPreview(wc, baseline, imagesOnly, 3, 2000);
+                    }
+                    // File 通道未生效 → 只带 HTML 再试一次（不同编辑器解析路径不同）
+                    if (!pasted) {
+                        await focusInput(wc, provider);
+                        baseline = await composerSnapshot(wc);
+                        dispatched = await dispatchSyntheticPaste(wc, image.split(',')[1] || '', 'html');
+                        if (dispatched) {
+                            pasted = await observeForPreview(wc, baseline, imagesOnly, 3, 2000);
+                        }
                     }
                 } else {
-                    // DeepSeek 等：真实 Ctrl+V + 内部观察验证（保留原稳定路径）
-                    pasted = await pasteWithRetry(wc, imagesOnly, 2, 2000);
+                    // DeepSeek 等：优先合成粘贴（单格式 File），绕开「大图经 OS 剪贴板再
+                    // Ctrl+V」会触发的 DIB 位图截断/损坏（表现：未识别到文字、图打不开）。
+                    // 观察窗放宽到 ~11s，给大图上传/渲染留时间，避免误判失败导致重复粘贴。
+                    let baseline = await composerSnapshot(wc);
+                    let dispatched = await dispatchSyntheticPaste(wc, image.split(',')[1] || '', 'file');
+                    if (dispatched) {
+                        pasted = await observeForPreview(wc, baseline, imagesOnly, 5, 2200);
+                    }
+                    // 合成未生效 → 退回真实 OS 剪贴板位图 Ctrl+V（剪贴板保持单格式位图）。
+                    // 不再补写 HTML(<img>)：双格式 + 巨型 base64 正是之前双粘贴与坏图的来源。
+                    if (!pasted) {
+                        clipboard.write({ image: native });
+                        await focusInput(wc, provider);
+                        pasted = await pasteWithRetry(wc, imagesOnly, 4, 2200);
+                    }
                 }
             }
             // 合成/真实粘贴校验不通过 → 直接注入页面上可见的 <input type="file"> 兜底
@@ -524,4 +558,4 @@ function createSolveModule({
     return { openDoubao, closeWindow, minimizeWindow, warmup, releaseWindow };
 }
 
-module.exports = { createSolveModule };
+module.exports = { createSolveModule, buildSyntheticPasteScript };

@@ -142,6 +142,38 @@ const GEN_BIG_IMG = `(function () {
             await sleep(2500);
         }
 
+        // === DeepSeek 链路大图冒烟（验证不再双粘贴/坏图，改为单格式合成粘贴） ===
+        console.log('\n=== 大体积图片多轮冒烟（DeepSeek） ===');
+        for (let round = 1; round <= ROUNDS; round++) {
+            console.log(`\n----- DeepSeek 第 ${round}/${ROUNDS} 轮 -----`);
+            const openResult = await evaluate(page.webSocketDebuggerUrl,
+                `(async () => {
+                    const t0 = performance.now();
+                    const r = await window.electronAPI.solve.open({ image: window.__solveBigImg, provider: 'deepseek' });
+                    return Object.assign({}, r, { ms: Math.round(performance.now() - t0) });
+                })()`, true);
+            report.push(`DeepSeek第${round}轮 solve.open → ok=${openResult && openResult.ok}, pasted=${openResult && openResult.pasted}, ms=${openResult && openResult.ms}`);
+            console.log(`open 返回:`, JSON.stringify(openResult));
+            await sleep(10000);   // 等大图上传/渲染
+            const dsTargets = await fetch(`http://127.0.0.1:${PORT}/json/list`).then(r => r.json());
+            const dsTarget = dsTargets.find(t => /chat\.deepseek\.com/.test(t.url));
+            if (dsTarget) {
+                const dom = await evaluate(dsTarget.webSocketDebuggerUrl,
+                    `JSON.stringify({
+                        ceImgs: (function(){var el=document.querySelector('[contenteditable="true"], textarea');return el?el.querySelectorAll('img').length:-1;})(),
+                        bigImgs: Array.prototype.slice.call(document.querySelectorAll('img')).filter(function(i){var r=i.getClientRects();return r.length&&r[0].width>=48&&r[0].height>=48;}).length
+                    })`);
+                const d = JSON.parse(dom);
+                report.push(`DeepSeek第${round}轮编辑区图数=${d.ceImgs}, 大图数=${d.bigImgs}`);
+                console.log(`DeepSeek 编辑区图数=${d.ceImgs}, 大图数=${d.bigImgs}`);
+            } else {
+                report.push(`DeepSeek第${round}轮未找到 chat.deepseek.com 页面目标（可能需登录/网络受限）`);
+                console.log('✗ 未找到 chat.deepseek.com 页面目标');
+            }
+            await evaluate(page.webSocketDebuggerUrl, 'window.electronAPI.solve.close()', true);
+            await sleep(3000);
+        }
+
         console.log('\n======== 汇总 ========');
         report.forEach(r => console.log('- ' + r));
         const passed = report.filter(r => /图数=[1-9]/.test(r)).length;
