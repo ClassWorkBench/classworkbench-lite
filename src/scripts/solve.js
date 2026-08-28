@@ -35,13 +35,18 @@
         return state.settings.solve;
     }
 
+    // 预览带重拍图标（内联 SVG）
+    const RESCAN_ICON =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+        'stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/></svg>';
+
     function buildHtml(sol) {
         return `
                     <div class="solve-head">
                         <span class="solve-head-icon"><img class="emoji" src="emoji/camera_color.svg" alt="📷"></span>
                         <div class="solve-head-text">
                             <div class="solve-title">拍照搜题</div>
-                            <div class="solve-sub">拍一页或「继续拍下一页」，完成后选 AI 搜题</div>
+                            <div class="solve-sub">拍下题目，选 AI 搜题</div>
                         </div>
                     </div>
                     <div class="solve-preview" id="solvePreview">
@@ -57,10 +62,8 @@
                     <div class="dialog-btn-row solve-btns">
                         <button class="btn" id="solveCancelBtn" type="button">取消</button>
                         <button class="btn" id="solveManualBtn" type="button">手动拍照</button>
-                        <button class="btn primary" id="solveMoreBtn" type="button" hidden>继续拍下一页</button>
-                        <button class="btn" id="solveRescanBtn" type="button" hidden>重新扫描本页</button>
-                        <button class="btn primary" id="solveGoDoubao" type="button" hidden>去豆包搜题</button>
-                        <button class="btn primary" id="solveGoDeepseek" type="button" hidden>去 DeepSeek 搜题</button>
+                        <button class="btn primary" id="solveGoDoubao" type="button" hidden>豆包搜题</button>
+                        <button class="btn primary" id="solveGoDeepseek" type="button" hidden>DeepSeek 搜题</button>
                     </div>
                 `;
     }
@@ -100,8 +103,6 @@
             shot: dialog.querySelector('#solveShot'),
             statusEl: dialog.querySelector('#solveStatus'),
             manualBtn: dialog.querySelector('#solveManualBtn'),
-            moreBtn: dialog.querySelector('#solveMoreBtn'),
-            rescanBtn: dialog.querySelector('#solveRescanBtn'),
             goDoubao: dialog.querySelector('#solveGoDoubao'),
             goDeepseek: dialog.querySelector('#solveGoDeepseek'),
             pagesEl: dialog.querySelector('#solvePages'),
@@ -284,10 +285,15 @@
     function bindControls() {
         const c = current;
         c.manualBtn.addEventListener('click', () => capture('manual'));
-        c.moreBtn.addEventListener('click', nextPage);
-        c.rescanBtn.addEventListener('click', rescan);
         c.goDoubao.addEventListener('click', () => goto('doubao'));
         c.goDeepseek.addEventListener('click', () => goto('deepseek'));
+        // 预览带事件委托：重拍（当前页右上角）与继续拍下一页（+格）
+        c.pagesEl.addEventListener('click', (e) => {
+            const t = e.target.closest('[data-action]');
+            if (!t) return;
+            if (t.dataset.action === 'rescan') rescan();
+            else if (t.dataset.action === 'add') nextPage();
+        });
         dialogCloseBtn(c);
 
         const autoCb = document.getElementById('solveAutoCb');
@@ -413,7 +419,7 @@
     function updateScanStatus() {
         const c = current;
         if (!c) return;
-        if (c.shotData) { setStatus('已拍摄 ✓ 可重新扫描或去豆包搜题'); return; }
+        if (c.shotData) { setStatus('已拍摄 ✓ 选 AI 搜题，或拍下一页'); return; }
         if (!c.sol.autoScan) { setStatus('手动模式：把题目对准镜头，点「手动拍照」'); return; }
         if (c.phase === 'motion') setStatus('检测到题目，正在对焦…');
         else if (c.phase === 'stable') setStatus('保持稳定，即将自动拍摄…');
@@ -503,12 +509,10 @@
         c.scan.classList.add('hidden');
         clearTimeout(c.raf);
         c.manualBtn.hidden = true;
-        c.rescanBtn.hidden = false;
-        c.moreBtn.hidden = false;
         c.goDoubao.hidden = false;
         c.goDeepseek.hidden = false;
         const total = c.pages.length + 1;
-        setStatus(`已拍摄第 ${total} 页 ✓ 可「继续拍下一页」累积，完成后选一个服务搜题`);
+        setStatus(`已拍 ${total} 页 ✓ 选一个 AI 搜题，或拍下一页`);
         renderPages();   // 当前页即时滑入横向平铺预览带
     }
 
@@ -541,8 +545,6 @@
         c.video.style.display = '';
         c.scan.classList.toggle('hidden', !c.sol.autoScan);
         c.manualBtn.hidden = false;
-        c.rescanBtn.hidden = true;
-        c.moreBtn.hidden = true;
         c.goDoubao.hidden = true;
         c.goDeepseek.hidden = true;
         clearTimeout(c.raf);
@@ -550,7 +552,8 @@
         if (c.sol.autoScan) c.raf = setTimeout(scanLoop, SAMPLE_MS);
     }
 
-    // 渲染横向平铺预览带：已定稿页 + 当前刚拍页（末位高亮 + 滑入 + 滚到最新）
+    // 渲染横向平铺预览带：已定稿页 + 当前刚拍页（末位高亮 + 右上角重拍 + 滑入 + 滚到最新）
+    // 当前页标题右侧追加「+」格 = 继续拍下一页（从底栏移除，避免底部按钮拥挤）
     function renderPages() {
         const c = current;
         if (!c || !c.pagesEl) return;
@@ -560,6 +563,7 @@
         });
         if (c.shotData) {
             c.pagesEl.appendChild(buildPageItem(c.shotData, c.pages.length + 1, true));
+            c.pagesEl.appendChild(buildAddTile());   // 有当前页才允许继续拍下一页
         }
         c.pagesEl.classList.toggle('empty', c.pages.length === 0 && !c.shotData);
         if (c.pagesEl.scrollWidth > c.pagesEl.clientWidth) {
@@ -572,8 +576,25 @@
     function buildPageItem(src, idx, active) {
         const item = document.createElement('div');
         item.className = 'solve-pages-item' + (active ? ' is-active' : '');
-        item.innerHTML = `<span class="scan-strip-idx">${idx}</span><img src="${src}" alt="第${idx}页">`;
+        item.innerHTML = `<span class="scan-strip-idx">${idx}</span>` +
+            (active
+                ? `<button type="button" class="solve-page-rescan" data-action="rescan" title="重拍本页" aria-label="重拍本页">${RESCAN_ICON}</button>`
+                : '') +
+            `<img src="${src}" alt="第${idx}页">`;
         return item;
+    }
+
+    // 「继续拍下一页」占位格：半透明灰色圆角矩形 + 相机图标与加号角标
+    function buildAddTile() {
+        const tile = document.createElement('button');
+        tile.type = 'button';
+        tile.className = 'solve-pages-add';
+        tile.dataset.action = 'add';
+        tile.title = '继续拍下一页';
+        tile.setAttribute('aria-label', '继续拍下一页');
+        tile.innerHTML = '<img class="solve-pages-add-cam" src="emoji/camera_outline.svg" alt="继续拍下一页">' +
+            '<span class="solve-pages-add-plus">+</span>';
+        return tile;
     }
 
     // ---- 半自动：去 AI 服务搜题 ----

@@ -3636,6 +3636,74 @@ body.reduce-anim .cp-pop {
     background: var(--accent);
     border-radius: 7px;
 }
+/* 当前页右上角：重拍按钮——与左上页码角标同尺寸(18px)、同位置(top6/right6 对齐 left6)，
+   保持水平对称。常显（不做 hover 淡入，避免触屏/不应期找不到）。 */
+.solve-page-rescan {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 3;
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: none;
+    border-radius: 9px;   /* 与页码角标一致 */
+    background: rgba(0, 0, 0, 0.42);
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.solve-page-rescan:hover {
+    background: rgba(0, 0, 0, 0.62);
+}
+.solve-page-rescan svg {
+    width: 10px;
+    height: 10px;
+}
+/* 「继续拍下一页」+格：与缩略图同尺寸，半透明灰圆角矩形 + 相机图标与加号角标 */
+.solve-pages-add {
+    position: relative;
+    width: 132px;
+    height: 99px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border-radius: 12px;
+    border: 1.5px dashed rgba(0, 0, 0, 0.22);
+    background: rgba(0, 0, 0, 0.045);
+    color: rgba(30, 30, 30, 0.5);
+    cursor: pointer;
+    animation: solvePageIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.solve-pages-add:hover {
+    background: rgba(0, 0, 0, 0.07);
+    color: rgba(20, 20, 20, 0.7);
+    border-color: rgba(0, 0, 0, 0.32);
+}
+.solve-pages-add-cam {
+    width: 38px;
+    height: 38px;
+    opacity: 0.82;   /* 线稿相机在半透明灰底上稍淡，层次更融合 */
+    pointer-events: none;
+}
+.solve-pages-add-plus {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-size: 1.05rem;
+    line-height: 1;
+    font-weight: 700;
+}
 @keyframes solvePageIn {
     from { transform: translateX(26px); opacity: 0; }
     to   { transform: translateX(0);    opacity: 1; }
