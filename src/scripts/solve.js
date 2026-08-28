@@ -124,18 +124,18 @@
         await attachStream(current, await streamPromise);
     }
 
-    // ---- 取景框精确适配 ----
+    // ---- 取景框精确适配 + 手动贝塞尔动画 ----
     // 为什么不用 CSS 定死：弹窗内容（缩略图带出现/消失、按钮显隐）和窗口高度都动态变化，
     // CSS 魔数（固定比例/固定 vh）在极端窗口高度下要么撑出滚动条、要么把内容压扁。
+    // 为什么不用 CSS transition 做动画：Chromium 在「测量归零/类切换」链路里会合并、取消、
+    // 残留过渡中间帧，导致动画僵硬、突变、甚至尺寸冻结。这里改用 JS 逐帧插值（README 见下），
+    // 完全确定、可中断可逆转、不受任何布局侧操作干扰 → 始终丝滑。
+    //
     // 测量（仅显式 force 进入，两段式实测，不枚举兄弟元素——gap/隐藏项/边框陷阱太多）：
-    //   1. 取景框临时归零（过渡禁用）→ 弹窗此刻的实际总高 = 其余内容的精确总高
+    //   1. 取景框临时归零 → 弹窗此刻的实际总高 = 其余内容的精确总高
     //   2. 限高 - 该值 = 可用高度，再按真实视频流比例求宽高
-    // 非测量快速路径：ResizeObserver 回调只做纯计算（缓存余高 + 实时限高），
-    // 物理切断「测量改布局 → RO 触发 → 再测量」的自激振荡（模糊关闭时弹窗不在合成层，必现疯狂抖动）。
-    // 动画（丝滑的关键，实测 Chromium 行为）：
-    //   - 同帧「禁过渡+设新值」在真实布局链路里不启动过渡 → 最终应用推迟到 rAF
-    //   - 测量后同步恢复过渡能力，新目标值经 CSS 过渡从当前渲染位置自然重启 → 无缝
-    //   - 目标未变时不触碰样式 → 不打断进行中的过渡
+    //   - 测量会改布局 → 归零期间必须暂停动画；测完从恢复点无缝续播
+    //   非测量（RO / resize）只做纯计算（缓存余高 + 实时限高）→ 切断测量引起的自激振荡。
     // 记忆：真实视频比例存入设置，视频就绪前用记忆比例，打开瞬间不再 4:3→16:9 突跳
     function fitPreview(force) {
         const c = current;
@@ -143,65 +143,112 @@
         const dlg = c.dialog;
         const pv = c.preview;
 
-        // 快速路径（非 force）：不测量，直接用「缓存余高 + 实时限高/宽度」算目标。
-        // 窗口缩放会改 maxHeight/clientWidth（computeTarget 实时读）→ 快速路径也能正确适配。
-        // 关键：全测量的「归零→回填」本身会让弹窗高度产生亚像素变化 → 触发 ResizeObserver →
-        // 若 RO 回调再走全测量就形成自激振荡（表现为弹窗疯狂抖动，且模糊关闭时弹窗
-        // 不在合成层、亚像素通知不再被吸收，回路必然点燃）。因此测量只允许显式 force 进入。
-        if (!force && c._restH) {
-            const quick = computeTarget(c, c._restH);
-            applyTarget(c, quick);
-            return;
-        }
-
-        // 完整测量（仅显式 force：renderPages / resize / animationend / 首次）：
-        // 禁过渡 + 归零 + 同步读高（读取 offsetHeight 触发 reflow，拿到确定性数值）。
-        // 副作用控制（关键！曾因此出「打开即冻结在小尺寸」的 bug）：
-        //   - 归零必须禁过渡，否则坍缩过程被动画化、测到垃圾值
-        //   - 测完恢复「原样式值」而不是渲染中间值 cur——把 cur 写进 style 后若 applyTarget
-        //     因目标未变早退（合法，不打断过渡），style 就永远停在过渡中间帧、
-        //     .fitting(transition:none) 也永远残留 → 之后所有过渡死亡、尺寸冻死
-        //   - .fitting 同步移除：配合 applyTarget 下一帧 rAF 设新值，可靠触发贝塞尔过渡
-        const prevW = pv.style.width;
-        const prevH = pv.style.height;
-        pv.classList.add('fitting');
-        pv.style.width = '0px';
-        pv.style.height = '0px';
-        const restH = dlg.offsetHeight;   // border-box 口径，与 max-height 同口径
-        c._restH = restH;                 // 缓存：此后所有非 force 调用复用（内容变化由 renderPages 强制刷新）
-        pv.style.width = prevW;           // 恢复原样式值（布局回到测量前状态）
-        pv.style.height = prevH;
-        pv.offsetWidth;
-        pv.classList.remove('fitting');   // 同步恢复过渡能力
-
-        applyTarget(c, computeTarget(c, restH));
-        // 记忆真实摄像头比例（未旋转的原始值），供下次打开在视频就绪前直接使用
-        if (c.video.videoWidth && c.video.videoHeight) {
-            const base = c.video.videoWidth / c.video.videoHeight;
-            if (Math.abs((c.sol.previewAR || 0) - base) > 0.01) {
-                c.sol.previewAR = +base.toFixed(4);
-                window.AppStorage.saveSettings().catch(() => {});
+        if (force) {
+            // 暂停动画，记录当前渲染尺寸作为无缝续播的起点
+            const cur = pauseAnim(c);
+            const prevW = pv.style.width;
+            const prevH = pv.style.height;
+            pv.style.width = '0px';
+            pv.style.height = '0px';
+            const restH = dlg.offsetHeight;   // border-box 口径，与 max-height 同口径
+            c._restH = restH;                 // 缓存：此后所有非 force 调用复用（内容变化由 renderPages 强制刷新）
+            pv.style.width = prevW;           // 恢复原样式值，布局回到测量前状态
+            pv.style.height = prevH;
+            pv.offsetWidth;
+            // 记忆真实摄像头比例（未旋转的原始值），供下次打开在视频就绪前直接使用
+            if (c.video.videoWidth && c.video.videoHeight) {
+                const base = c.video.videoWidth / c.video.videoHeight;
+                if (Math.abs((c.sol.previewAR || 0) - base) > 0.01) {
+                    c.sol.previewAR = +base.toFixed(4);
+                    window.AppStorage.saveSettings().catch(() => {});
+                }
             }
+            startAnim(c, computeTarget(c, restH), cur);   // 从恢复点(cur)平滑到新目标
+        } else if (c._restH) {
+            startAnim(c, computeTarget(c, c._restH));      // 纯计算快速路径：不测量
         }
     }
 
-    // 应用目标尺寸：_fitW/_fitH 同步更新（快速路径的比较立即生效，不等动画回调），
-    // 实际样式推迟到 rAF——同帧「设新值」在测量刚恢复过渡的链路里不启动过渡，
-    // 推迟一帧则可靠触发贝塞尔过渡（CSS 原生从当前渲染位置平滑过渡到新目标）
-    function applyTarget(c, t) {
+    // ---------- 手动贝塞尔尺寸动画 ----------
+    // 每次调用：若目标与「动画最终目标」不同，或动画未在跑，则从当前渲染位置启动新插值。
+    // 单帧内多次触发只会收敛到同一个目标，不会中断/重启 → 无突变。
+    // 目标未变且动画已停 → 什么都不做（不触碰 style，绝无振荡）。
+    const ANIM_MS = 320;   // 与苹果缓出 feel 一致
+    // 预采样 cubic-bezier(0.22, 1, 0.36, 1) 曲线 → 避免每帧解三次方程
+    const EASE = (() => {
+        const n = 64, out = new Float64Array(n + 1);
+        // Newton 迭代解 x(t)=p，取 y(t)。控制点 P0(0,0) P1(0.22,1) P2(0.36,1) P3(1,1)
+        for (let i = 0; i <= n; i++) {
+            const p = i / n;
+            let t = p;
+            for (let k = 0; k < 8; k++) {
+                const mt = 1 - t;
+                const x = 3 * mt * mt * t * 0.22 + 3 * mt * t * t * 0.36 + t * t * t;
+                const dx = 3 * mt * mt * 0.22 + 6 * mt * t * (0.36 - 0.22) + 3 * t * t * (1 - 0.36);
+                if (Math.abs(dx) < 1e-6) break;
+                t -= (x - p) / dx;
+                if (t < 0) { t = 0; } else if (t > 1) { t = 1; }
+            }
+            const mt = 1 - t;
+            out[i] = 3 * mt * mt * t * 1 + 3 * mt * t * t * 1 + t * t * t;
+        }
+        return out;
+    })();
+
+    // 暂停动画：返回「当前渲染尺寸」作为续播起点，并取消进行中的插值帧
+    function pauseAnim(c) {
         const pv = c.preview;
-        if (t.w === c._fitW && t.h === c._fitH) return;   // 目标未变：不触碰样式、不打断进行中的过渡
-        c._fitW = t.w; c._fitH = t.h;
-        c._pendT = t;   // 多次调用竞态：只应用最后一次
-        requestAnimationFrame(() => {
-            if (current !== c || !c.preview) return;
-            if (c._pendT !== t) return;    // 已有更新的目标，让位
-            c._pendT = null;
-            pv.classList.remove('fitting');   // 兜底：确保过渡能力已恢复（正常在测量尾部已同步移除）
-            pv.style.width = t.w + 'px';
-            pv.style.height = t.h + 'px';
-            pv.style.aspectRatio = 'auto';    // 接管基类 4:3，按显式宽高渲染
-        });
+        const r = pv.getBoundingClientRect();
+        if (c._animRaf) { cancelAnimationFrame(c._animRaf); c._animRaf = 0; }
+        c._anim = null;
+        return { w: r.width, h: r.height };
+    }
+
+    // 从当前渲染尺寸向目标尺寸逐帧插值
+    function startAnim(c, to, from) {
+        const pv = c.preview;
+        if (!to || to.w <= 0 || to.h <= 0) return;
+        if (!from) {
+            // 无显式起点：用当前渲染尺寸（含正在进行的动画中间值，保证无缝衔接/可逆）
+            const r = pv.getBoundingClientRect();
+            from = { w: r.width, h: r.height };
+        }
+        // 已在朝同一目标动画 → 保持（不重启、不突变）
+        if (c._to && c._to.w === to.w && c._to.h === to.h && c._animRaf) return;
+        // 目标等于当前渲染尺寸（且无活跃动画）→ 直接定格，不启动插值
+        if (!c._anim && Math.abs(from.w - to.w) < 0.5 && Math.abs(from.h - to.h) < 0.5) {
+            pv.style.width = to.w + 'px';
+            pv.style.height = to.h + 'px';
+            c._anim = null; c._to = null;
+            return;
+        }
+        c._from = from;
+        c._to = to;
+        c._t0 = performance.now();   // 从 from（当前渲染位置）播一段新的 320ms 插值
+        if (!c._animRaf) c._animRaf = requestAnimationFrame(() => animStep(c));
+    }
+
+    function animStep(c) {
+        c._animRaf = 0;
+        const pv = c.preview;
+        if (!c || current !== c || !pv) return;
+        const from = c._from, to = c._to;
+        if (!from || !to) return;
+        const p = Math.min(1, (performance.now() - c._t0) / ANIM_MS);
+        const e = EASE[Math.min(EASE.length - 1, Math.round(p * (EASE.length - 1)))];
+        const w = from.w + (to.w - from.w) * e;
+        const h = from.h + (to.h - from.h) * e;
+        pv.style.width = w + 'px';
+        pv.style.height = h + 'px';
+        pv.style.aspectRatio = 'auto';
+        if (p < 1) {
+            c._animRaf = requestAnimationFrame(() => animStep(c));
+        } else {
+            // 定稿：写入精确目标，清理态，绝无残留中间帧
+            pv.style.width = to.w + 'px';
+            pv.style.height = to.h + 'px';
+            c._anim = null; c._to = null; c._from = null; c._t0 = 0;
+        }
     }
 
     // 由「余高 + 限高 + 视频流比例」求取景框目标尺寸
@@ -228,11 +275,10 @@
         if (!c || !c.dialog) return;
         c._ro = new ResizeObserver(() => requestAnimationFrame(fitPreview));
         c._ro.observe(c.dialog);
-        // 弹窗入场动画只改 transform（不触发 ResizeObserver），但 transform 缩放会让
-        // getBoundingClientRect 测量失真 → 动画结束后用真实布局再校准一次
-        c.dialog.addEventListener('animationend', fitPreview, { once: true });
+        // 首次：显式强制测量（非 force 快速路径依赖 _restH，首次必须先实测一次拿到余高）
+        requestAnimationFrame(() => fitPreview(true));
+        // 窗口尺寸变化时重新适配（快速路径实时读限高/宽度，无需测量即可正确收敛）
         window.addEventListener('resize', fitPreview);
-        requestAnimationFrame(fitPreview);
     }
 
     function bindControls() {
@@ -569,6 +615,8 @@
         if (!c) return;
         c.stopped = true;
         clearTimeout(c.raf);
+        if (c._animRaf) { cancelAnimationFrame(c._animRaf); c._animRaf = 0; }
+        c._anim = null; c._to = null; c._from = null;
         if (c._ro) { c._ro.disconnect(); c._ro = null; }
         window.removeEventListener('resize', fitPreview);
         stopTracks(c);

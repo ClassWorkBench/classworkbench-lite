@@ -3443,20 +3443,14 @@ body.reduce-anim .cp-pop {
    若允许压缩，fitPreview 测到的是「被压扁后」的假高度，算出的取景框偏大，
    兄弟元素随后回弹 → 总高再次超限且弹窗高度钉死不再触发重算，永远无法收敛 */
 .solve-dialog > * { flex-shrink: 0; }
-/* 取景框尺寸由 JS 按弹窗剩余可用空间精确计算（比例跟随真实视频流），
-   CSS 仅保留 4:3 作为视频流就绪前的初始兜底 */
+/* 取景框尺寸由 JS 手动贝塞尔插值驱动（startAnim），不依赖 CSS transition：
+   CSS transition 在 Chromium 的「测量/归零/类切换」链路里易被合并、取消、残留中间帧，
+   导致动画僵硬、突变、或尺寸冻结。JS 逐帧插值完全确定、可中断可逆转、不受干扰。 */
 .solve-dialog .solve-preview {
     width: 100%;
     margin-inline: auto;
     flex: 0 0 auto;
-    /* 尺寸变化（拍下一页/按钮显隐/窗口缩放）丝滑过渡：苹果风格缓出贝塞尔 */
-    transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-                height 0.32s cubic-bezier(0.22, 1, 0.36, 1);
-}
-/* fitPreview 两段式实测（归零→测量→回填）的瞬间禁用过渡：
-   否则归零/回填也会被动画化，测量读到的是过渡中间值 */
-.solve-dialog .solve-preview.fitting {
-    transition: none;
+    will-change: width, height;   /* 提示合成器，逐帧改尺寸时更流畅 */
 }
 .solve-head {
     display: flex;
