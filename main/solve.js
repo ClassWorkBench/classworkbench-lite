@@ -19,7 +19,6 @@ const PROVIDERS = {
         url: 'https://www.doubao.com/chat/',
         hosts: ['doubao.com'],
         verifyImagesOnly: true,   // ProseMirror 编辑器：粘贴成功必须以「编辑器内出现图片」为准
-        pasteMode: 'synthetic',   // 直接给编辑器派发合成粘贴（最稳定，不依赖 OS 剪贴板/焦点）
         inputSelectors: [
             'textarea[placeholder]',
             'textarea',
@@ -483,39 +482,20 @@ async function dispatchSyntheticPaste(wc, imageBase64, mode) {
                 wc.focus();
                 win.focus();
                 const imagesOnly = provider.verifyImagesOnly === true;
-                if (provider.pasteMode === 'synthetic') {
-                    // 豆包：DataTransfer 每次只带一种格式，分两轮尝试。
-                    // 旧行为同时携带 File + HTML，编辑器若两条解析路径都走会重复粘贴两张图。
-                    let baseline = await composerSnapshot(wc);
-                    let dispatched = await dispatchSyntheticPaste(wc, image.split(',')[1] || '', 'file');
-                    if (dispatched) {
-                        pasted = await observeForPreview(wc, baseline, imagesOnly, 3, 2000);
-                    }
-                    // File 通道未生效 → 只带 HTML 再试一次（不同编辑器解析路径不同）
-                    if (!pasted) {
-                        await focusInput(wc, provider);
-                        baseline = await composerSnapshot(wc);
-                        dispatched = await dispatchSyntheticPaste(wc, image.split(',')[1] || '', 'html');
-                        if (dispatched) {
-                            pasted = await observeForPreview(wc, baseline, imagesOnly, 3, 2000);
-                        }
-                    }
-                } else {
-                    // DeepSeek 等：优先合成粘贴（单格式 File），绕开「大图经 OS 剪贴板再
-                    // Ctrl+V」会触发的 DIB 位图截断/损坏（表现：未识别到文字、图打不开）。
-                    // 观察窗放宽到 ~11s，给大图上传/渲染留时间，避免误判失败导致重复粘贴。
-                    let baseline = await composerSnapshot(wc);
-                    let dispatched = await dispatchSyntheticPaste(wc, image.split(',')[1] || '', 'file');
-                    if (dispatched) {
-                        pasted = await observeForPreview(wc, baseline, imagesOnly, 5, 2200);
-                    }
-                    // 合成未生效 → 退回真实 OS 剪贴板位图 Ctrl+V（剪贴板保持单格式位图）。
-                    // 不再补写 HTML(<img>)：双格式 + 巨型 base64 正是之前双粘贴与坏图的来源。
-                    if (!pasted) {
-                        clipboard.write({ image: native });
-                        await focusInput(wc, provider);
-                        pasted = await pasteWithRetry(wc, imagesOnly, 4, 2200);
-                    }
+                // 统一单格式合成粘贴（仅 File 通道）：绕开「大图经 OS 剪贴板再 Ctrl+V」的
+                // DIB 位图截断/损坏，也绝不做 HTML(<img>) 第二轮——双格式 + 巨型 base64
+                // 正是之前「一次贴两张 + 坏图」的来源。观察窗放宽到 ~11s，给大图上传/渲染
+                // 留足时间，避免误判失败后错误重贴。
+                let baseline = await composerSnapshot(wc);
+                let dispatched = await dispatchSyntheticPaste(wc, image.split(',')[1] || '', 'file');
+                if (dispatched) {
+                    pasted = await observeForPreview(wc, baseline, imagesOnly, 5, 2200);
+                }
+                // 合成未生效 → 退回真实 OS 剪贴板位图 Ctrl+V（剪贴板保持单格式位图）
+                if (!pasted) {
+                    clipboard.write({ image: native });
+                    await focusInput(wc, provider);
+                    pasted = await pasteWithRetry(wc, imagesOnly, 4, 2200);
                 }
             }
             // 合成/真实粘贴校验不通过 → 直接注入页面上可见的 <input type="file"> 兜底
