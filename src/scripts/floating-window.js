@@ -231,9 +231,9 @@
     // ============ 贴边探头模式 ============
     // 收起双泳道：卡片缩条时长须与主进程窗口矩形动画（DOCK_ANIM_MS=240）对齐，
     // 两泳道同缓动同时长 → 全程锁步，避免"先缩原地再滑向边缘"的两段感。
-    // 减弱动画下不走缩条，改为卡片淡出 + 箭头淡入（时长与 CSS 过渡 0.3s 对齐）。
+    // 减弱动画下不走缩条，改为卡片淡出 + 箭头淡入（时长与 CSS 过渡对齐）。
     const PROBE_SHRINK_MS_NORMAL = 240;
-    const PROBE_FADE_MS_REDUCED = 300;
+    const PROBE_FADE_MS_REDUCED = 200;
     let probeTimer = null;        // 收缩动画结束 → 切入探头模式的延迟定时器
     let probeSeq = 0;             // 递增 token：快速往返时让旧定时器/旧动画回调全部失效
 

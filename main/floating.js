@@ -17,6 +17,7 @@ const GAP_X = 12;
 const GAP_Y = 12;
 const PROBE_W = 26;          // 贴边后露出的探头宽度（px）
 const DOCK_ANIM_MS = 240;    // 贴边/滑出动画时长（ms）
+const PROBE_FADE_MS_REDUCED = 200; // 减弱动画：卡片淡出/箭头淡入时长（渲染层同值）
 const FADE_OUT_DELAY_MS = 3000; // 变成小探头后多久淡化（ms）
 const PROBE_FINAL_H = 36;    // 贴边后探头最终高度（px，固定 36 与宽 PROBE_W=26 配出胶囊形）
 
@@ -423,17 +424,35 @@ function createFloatingModule({ BrowserWindow, screen, path, log, assetsDir, get
         // 连贯动作。原实现窗口延后 60ms + easeInOutQuint（先加速后急停），内容收缩却快起慢收，
         // 两者相位错开 → 视觉上"先缩在原地、再滑向边缘"两段感。
         send(entry, 'float:probe', { side, color: entry.card.color || '#5b6abf' });
-        const spec = animSpec(DOCK_ANIM_MS, EASE_OUT_QUINT);
-        animateRect(entry, from, toProbe, spec.ms, spec.ease, () => {
-            if (!entry.dock || entry.win.isDestroyed()) return;
-            entry.dock.phase = 'probe';
-            // 变成小探头后，3 秒淡化
-            entry.dock.fadeTimer = setTimeout(() => {
-                if (!entry.dock || entry.win.isDestroyed() || !modeActive) return;
-                entry.dock.faded = true;
-                send(entry, 'float:probe-fade');
-            }, FADE_OUT_DELAY_MS);
-        });
+        if (isReducedMotion()) {
+            // 减弱动画：窗口不滑动。等卡片淡出后瞬移成探头——卡片已透明，切换不可见，
+            // 视觉上只有"卡片原地渐出 → 箭头在贴边处渐入"
+            setTimeout(() => {
+                if (!entry.dock || entry.win.isDestroyed()) return;
+                entry.win.setBounds(toProbe);
+                entry.x = toProbe.x;
+                entry.y = toProbe.y;
+                entry.dock.phase = 'probe';
+                // 变成小探头后，3 秒淡化
+                entry.dock.fadeTimer = setTimeout(() => {
+                    if (!entry.dock || entry.win.isDestroyed() || !modeActive) return;
+                    entry.dock.faded = true;
+                    send(entry, 'float:probe-fade');
+                }, FADE_OUT_DELAY_MS);
+            }, PROBE_FADE_MS_REDUCED);
+        } else {
+            const spec = animSpec(DOCK_ANIM_MS, EASE_OUT_QUINT);
+            animateRect(entry, from, toProbe, spec.ms, spec.ease, () => {
+                if (!entry.dock || entry.win.isDestroyed()) return;
+                entry.dock.phase = 'probe';
+                // 变成小探头后，3 秒淡化
+                entry.dock.fadeTimer = setTimeout(() => {
+                    if (!entry.dock || entry.win.isDestroyed() || !modeActive) return;
+                    entry.dock.faded = true;
+                    send(entry, 'float:probe-fade');
+                }, FADE_OUT_DELAY_MS);
+            });
+        }
         return { success: true };
     }
 
@@ -475,8 +494,15 @@ function createFloatingModule({ BrowserWindow, screen, path, log, assetsDir, get
         // 先发 probe-off：渲染层立即把彩条弹成卡片（CSS spring，先快后慢带轻微回弹），
         // 窗口矩形同时展开，两条泳道全程并行重叠 → 视觉连续。渲染层双 rAF 天然让内容晚几帧起跑。
         send(entry, 'float:probe-off');
-        const spec = animSpec(DOCK_ANIM_MS, EASE_OUT_QUINT);
-        animateRect(entry, { x: b.x, y: b.y, width: b.width, height: b.height }, d.from, spec.ms, spec.ease);
+        if (isReducedMotion()) {
+            // 减弱动画：窗口不滑动，直接瞬移回卡片位置（卡片淡入由渲染层负责）
+            entry.win.setBounds(d.from);
+            entry.x = d.from.x;
+            entry.y = d.from.y;
+        } else {
+            const spec = animSpec(DOCK_ANIM_MS, EASE_OUT_QUINT);
+            animateRect(entry, { x: b.x, y: b.y, width: b.width, height: b.height }, d.from, spec.ms, spec.ease);
+        }
     }
 
     function undockCard(wcId) {

@@ -355,14 +355,14 @@ html.float-window body.reduce-anim .float-card.probe-grow {
 /* 减弱动画 · 贴边：卡片淡出 + 箭头淡入（不做缩条/回弹） */
 html.float-window body.reduce-anim .float-card.probe-fade-out {
     opacity: 0 !important;
-    transition: opacity 0.3s ease !important;
+    transition: opacity 0.2s ease !important;
 }
 html.float-window body.reduce-anim .float-card.probe-fade-in {
     opacity: 1 !important;
-    transition: opacity 0.3s ease !important;
+    transition: opacity 0.2s ease !important;
 }
 html.float-window body.reduce-anim .probe-mode .float-probe {
-    animation: probeFadeIn 0.3s ease !important;
+    animation: probeFadeIn 0.2s ease !important;
 }
 @keyframes probeFadeIn {
     from { opacity: 0; }
