@@ -5,7 +5,8 @@
 
 const BG_SOURCES = Object.freeze({
     upx8: { name: 'Upx8 风景', url: 'https://wp.upx8.com/api.php?category=nature&return=302' },
-    xxapi: { name: 'XXAPI 4K 壁纸', url: 'https://v2.xxapi.cn/api/random4kPic?type=wallpaper&return=302' }
+    xxapi: { name: 'XXAPI 4K 壁纸', url: 'https://v2.xxapi.cn/api/random4kPic?type=wallpaper&return=302' },
+    ltyuanfang: { name: '兔图苑 风景', url: 'https://tu.ltyuanfang.cn/api/fengjing.php' }
 });
 
 const BG_MAX_CACHE_FILES = 6;        // 背景图缓存上限（原 12，大屏场景 6 张无重复感）

@@ -59,8 +59,11 @@
         if (cached && cached.ok) {
             await applyBackground(cached.url);
         }
-
-        await fetchNewBackground(false);
+        // 不在启动时强制拉新图：刷新交给定时器按设定分钟数执行。
+        // 仅当本地没有任何缓存（首次使用 / 缓存被清）时才立即拉一张，避免"每次启动都换背景"。
+        if (!cached || !cached.ok) {
+            await fetchNewBackground(false);
+        }
         bgLastRefreshTime = Date.now();
     }
 

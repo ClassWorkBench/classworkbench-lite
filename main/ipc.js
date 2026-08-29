@@ -150,7 +150,8 @@ function setupIpc({
     ipcMain.handle('bg:fetch', async () => {
         const fresh = await bg.fetchAndCacheBackground();
         if (fresh) return fresh;
-        const url = bg.pickRandomCachedBackground();
+        // 拉新失败时保留"最后一张"（index.current），不随机跳图，维持启动/刷新的一致性
+        const url = bg.pickCachedBackground();
         return url ? { ok: true, url, source: 'cache' } : { ok: false, source: 'none' };
     });
 

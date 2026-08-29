@@ -57,6 +57,7 @@
         const bgSourceHtml = [
             { value: 'upx8', label: 'Upx8 风景' },
             { value: 'xxapi', label: 'XXAPI 4K 壁纸' },
+            { value: 'ltyuanfang', label: '兔图苑 风景' },
         ].map(o =>
             `<option value="${o.value}" ${settings.bgSource === o.value ? 'selected' : ''}>${o.label}</option>`
         ).join('');

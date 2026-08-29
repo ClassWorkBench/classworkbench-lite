@@ -24,7 +24,6 @@ window.SettingsModules.personal = {
                             <div class="setting-group">
                                 <label for="bgRefreshSelect">背景刷新频率</label>
                                 <select id="bgRefreshSelect" data-cselect aria-label="背景刷新频率">${refreshHtml}</select>
-                                <small>"不刷新"仅本次会话有效，下次启动仍会加载新图</small>
                             </div>
                             <div class="setting-group">
                                 <label for="bgRefreshModeSelect">背景刷新模式</label>
