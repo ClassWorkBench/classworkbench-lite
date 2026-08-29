@@ -223,6 +223,11 @@ body.reduce-anim .grid-empty {
     overflow-x: auto;
     transition: all 0.4s var(--transition-smooth);
     scrollbar-width: none;
+    /* 首次入场舒缓展开（末尾缓出），只跑一次；配合胶囊自身收放过渡 */
+    animation: barRise 0.55s var(--transition-expand) both;
+}
+body.reduce-anim .bottom-capsule {
+    animation: none;   /* 减弱动画：去掉上浮位移，仅保留淡入 */
 }
 .bottom-capsule::-webkit-scrollbar {
     display: none;

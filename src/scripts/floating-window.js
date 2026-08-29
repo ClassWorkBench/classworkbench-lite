@@ -11,6 +11,18 @@
 
     const api = window.floatingAPI;
 
+    // 跟随全局深浅色：主进程已按外观设置 nativeTheme.themeSource，
+    // 这里读 prefers-color-scheme 落到 html data-theme，复用 base.css 的深色变量层；
+    // 浮窗专属硬编码白/浅底由 floating.css 覆盖。
+    function syncTheme() {
+        const dark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    }
+    syncTheme();
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
+    }
+
     // 编号美化（与主窗口 formatNumCircle 一致，浮窗窗口不加载主窗口脚本）
     function formatNumCircle(text) {
         return String(text || '').split('\n').map(line => {

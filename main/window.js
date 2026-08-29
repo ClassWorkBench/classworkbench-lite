@@ -6,6 +6,10 @@
 // ============================================
 
 const { BROWSER_WINDOW_DEFAULTS } = require('./constants');
+const { nativeTheme } = require('electron');
+
+// 深浅色下的窗口底色（与页面 --bg-body 对齐）：先于页面绘制前用，避免露出错色一帧
+const THEME_BG = { light: '#fafaf7', dark: '#16161a' };
 
 /**
  * @param {object} opts
@@ -39,7 +43,11 @@ function createWindowModule({
             createWindow(true);
             return;
         }
+        // 恢复全屏/最大化几何，避免从默认尺寸首现再 resize 造成的闪烁
+        if (!mainWindow.isMaximized() && !mainWindow.isFullScreen()) mainWindow.maximize();
         if (mainWindow.isMinimized()) mainWindow.restore();
+        // 先对齐窗口底色（深浅色）再显示，与页面背景无缝衔接
+        try { mainWindow.setBackgroundColor(nativeTheme.shouldUseDarkColors ? THEME_BG.dark : THEME_BG.light); } catch (e) { log.warn('[window] setBackgroundColor 失败:', e); }
         if (!mainWindow.isVisible()) mainWindow.show();
         mainWindow.focus();
     }
@@ -88,7 +96,9 @@ function createWindowModule({
                 sandbox: true,
                 spellcheck: false,
                 webgl: false,
-                backgroundThrottling: true,
+                // 默认关闭后台节流：让隐藏窗口（开机自启 --hidden）也持续渲染，
+                // 首次呼出时画面已就绪，无白屏闪烁（资源由下方 hide→节流 / show→放开 的钩子兜底）
+                backgroundThrottling: false,
             },
         });
 
@@ -104,8 +114,11 @@ function createWindowModule({
         mainWindow.loadFile(htmlPath);
 
         mainWindow.once('ready-to-show', () => {
+            // 无论是否隐藏启动，都先按主题对齐底色并恢复全屏/最大化几何（隐藏时不展示，首现零 resize）。
+            // 这样开机自启的天花板场景下，托盘呼出即"已渲染且全屏"。
+            try { mainWindow.setBackgroundColor(nativeTheme.shouldUseDarkColors ? THEME_BG.dark : THEME_BG.light); } catch (e) { log.warn('[window] setBackgroundColor 失败:', e); }
+            mainWindow.maximize();
             if (forceShow || !startHidden) {
-                mainWindow.maximize();
                 mainWindow.show();
             }
         });

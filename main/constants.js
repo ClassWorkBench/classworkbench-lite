@@ -29,7 +29,8 @@ const BROWSER_WINDOW_DEFAULTS = Object.freeze({
     minWidth: 360,
     minHeight: 480,
     title: '班级工作台',
-    backgroundColor: '#eef2f0'
+    // 与页面主背景 --bg-body(#fafaf7) 严格对齐，消除首次绘制时窗口底色与网页底色不一致的闪色
+    backgroundColor: '#fafaf7'
 });
 
 module.exports = {

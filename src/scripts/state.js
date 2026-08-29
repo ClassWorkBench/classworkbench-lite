@@ -40,6 +40,7 @@ let settings = {
     blurCard: true,                  // 作业卡片高斯模糊
     blurModal: true,                 // 模态弹窗高斯模糊
     reduceAnimation: false,          // 减弱动画效果（标准/减弱，iOS 式淡入淡出）
+    appearance: 'system',            // 外观模式：'system' 跟随系统 | 'light' 浅色 | 'dark' 深色
     // 首次使用向导
     wizardCompleted: false,          // 是否已完成首次设置向导
     acceptedAgreementVersion: '',    // 已同意的用户协议/隐私声明版本（AGREEMENT_VERSION）

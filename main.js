@@ -11,7 +11,7 @@
 //   main/ipc.js             — 32 个 IPC 胶水层 handler（无业务）
 // ============================================
 
-const { app, BrowserWindow, WebContentsView, ipcMain, Tray, Menu, net, clipboard, shell, dialog, screen, session, safeStorage, nativeImage } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Tray, Menu, net, clipboard, shell, dialog, screen, session, safeStorage, nativeImage, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -137,6 +137,11 @@ if (!gotTheLock) {
         store = createDataStore({ app, fs, path, log, cipher, defaults: STORE_DEFAULTS, isEncryptionEnabled });
         store.load();   // 旧明文自动迁移 + 损坏自愈
         getQqConfig._store = store;
+
+        // 深色模式：启动即按已存外观设置原生主题（早于任何窗口/搜题预热），
+        // 使原生 UI 与所有内嵌网页（含豆包/DeepSeek）的 prefers-color-scheme 一致。
+        const _initAppearance = (store.get('settings') || {}).appearance;
+        nativeTheme.themeSource = { system: 'system', light: 'light', dark: 'dark' }[_initAppearance] || 'system';
 
         // ---- 摄像头/媒体权限（拍照搜题）：仅放行 media，其余网页权限一律拒绝 ----
         session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {

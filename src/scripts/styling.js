@@ -40,16 +40,47 @@
         document.body.classList.toggle('blur-modal-off', !state.settings.blurModal);
     }
 
-    function initStyling() {
+    // ----- 外观模式（浅色/深色/跟随系统）-----
+    // 解析外观配置 → 实际主题 'light' | 'dark'
+    function resolveTheme(appearance) {
+        if (appearance === 'dark') return 'dark';
+        if (appearance === 'light') return 'light';
+        // 'system' 跟随系统
+        return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    }
+
+    // 应用外观：将解析结果落到 html 的 data-theme（而非 body，避免触碰模糊/减动效等 body 运行时类），
+    // 再同步背景层底色（浅色/深色 --bg-body 不同）。
+    function applyAppearance() {
+        const theme = resolveTheme(state.settings.appearance || 'system');
+        document.documentElement.setAttribute('data-theme', theme);
         applyStyling();
+    }
+
+    // 跟随系统：注册系统主题变化监听，仅在外观为 system 时响应
+    function initThemeWatcher() {
+        if (!window.matchMedia) return;
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = () => {
+            if ((state.settings.appearance || 'system') === 'system') applyAppearance();
+        };
+        if (mq.addEventListener) mq.addEventListener('change', handler);
+        else if (mq.addListener) mq.addListener(handler); // 旧内核兜底
+    }
+
+    function initStyling() {
+        applyAppearance();       // 初始化外观（含 data-theme 与背景层底色）
         applyReducedMotion();
         applyBlurClasses();
+        initThemeWatcher();      // 跟随系统的实时切换
     }
 
     window.AppStyling = {
         applyStyling,
         applyReducedMotion,
         applyBlurClasses,
+        applyAppearance,
+        initThemeWatcher,
         initStyling
     };
 })();

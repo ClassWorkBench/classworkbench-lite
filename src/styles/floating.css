@@ -352,3 +352,30 @@ html.float-window body.reduce-anim .float-card.probe-grow {
     transition-duration: 0.12s !important;
     transition-timing-function: ease-out !important;
 }
+
+/* ---------- 深色模式 ----------
+   data-theme 由 floating-window.js 同步（主窗口浮窗由 styling.js 同步），
+   复用 base.css 深色变量（文字/卡片/border 自动变亮）；
+   这里只补浮窗专属的硬编码浅底、图标色（主窗口侧浮动横幅一并适配）。 */
+:root[data-theme="dark"] .float-ctrl,
+:root[data-theme="dark"] .f-act {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+}
+:root[data-theme="dark"] .float-ctrl:hover,
+:root[data-theme="dark"] .float-ctrl.open,
+:root[data-theme="dark"] .f-act:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: var(--text-primary);
+}
+:root[data-theme="dark"] .f-exit,
+:root[data-theme="dark"] .f-exit:hover {
+    color: var(--accent);
+    background: rgba(138, 152, 255, 0.12);
+}
+:root[data-theme="dark"] .float-error {
+    background: rgba(30, 30, 36, 0.96);
+}
+:root[data-theme="dark"] .float-banner {
+    background: rgba(30, 30, 36, 0.55);
+}

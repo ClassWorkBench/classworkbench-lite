@@ -26,6 +26,19 @@
  * @param {Function} opts.getMainWindow - 获取当前主窗口（page:copy / 关闭窗口用）
  * @param {Function} opts.getQqConfig - 从 store 取当前 QQ 设置（qq:toggle / qq:updateConfig 用）
  */
+const { nativeTheme } = require('electron');
+
+// 外观模式 → nativeTheme.themeSource（一一对应）
+const APPEARANCE_TO_SOURCE = { system: 'system', light: 'light', dark: 'dark' };
+
+// 深色模式原生同步：设置 nativeTheme.themeSource 会统一影响——
+//   原生 UI（标题栏/菜单/DevTools）；
+//   所有 WebContents 的 prefers-color-scheme（含 AI 搜题内嵌的豆包/DeepSeek 第三方网页），
+//   它们据此自动明暗，无需侵入第三方页面。
+function syncNativeTheme(settings) {
+    nativeTheme.themeSource = (settings && APPEARANCE_TO_SOURCE[settings.appearance]) || 'system';
+}
+
 function setupIpc({
     ipcMain, clipboard, shell, log, store,
     archive, bg, autoLaunch, sidecar, backup, floating, solve, scan, cipher, docsSync, qweather, updater,
@@ -73,6 +86,8 @@ function setupIpc({
         store.set('homeworks', homeworks || []);
         if (subjects !== undefined) store.set('subjects', subjects);
         if (settings !== undefined) store.set('settings', mergePrivateKeyOnSave(settings));
+        // 外观改动随保存即时同步到原生主题（影响内嵌 AI 搜题网页的明暗）
+        if (settings !== undefined) syncNativeTheme(settings);
         await store.flush();   // 加密落盘（串行队列）
         return { success: true };
     });

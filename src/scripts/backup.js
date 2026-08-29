@@ -559,6 +559,8 @@
 
     function applyRuntimeAfterRestore() {
         try { applyStyling(); } catch (_) {}
+        // 外观模式恢复后即时生效
+        try { window.AppStyling.applyAppearance(); } catch (_) {}
         // 模糊/减动效统一走 AppStyling（叠加"系统透明/减动效"判断）
         try { window.AppStyling.applyBlurClasses(); } catch (_) {}
         try { window.AppStyling.applyReducedMotion(); } catch (_) {}

@@ -12,6 +12,7 @@
     --transition-soft-spring: cubic-bezier(0.34, 1.15, 0.64, 1);
     --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
     --transition-push: cubic-bezier(0.22, 1, 0.36, 1);
+    --transition-expand: cubic-bezier(0.33, 1, 0.68, 1);   /* 舒缓缓出：起步快、末尾慢慢落定，适合胶囊/面板展开 */
     --bg-body: #fafaf7;
     --text-primary: #1a1a1a;
     --text-secondary: #333333;
@@ -56,6 +57,112 @@
     --card-padding: 20px 20px 16px;
     --mask-opacity: 0.15;
     --scrollbar-thumb: #a8a8b0;
+}
+
+/* ============================================
+ * 深色主题（data-theme="dark" 由外观模式驱动）
+ * 浅色为默认 :root，深色通过覆盖核心变量实现；
+ * 「跟随系统」时由 JS 解析系统主题后落到 data-theme。
+ * ============================================ */
+:root[data-theme="dark"] {
+    --bg-body: #16161a;
+    --text-primary: #eeeef2;
+    --text-secondary: #b3b3be;
+    --text-muted: #8a8a96;
+    /* 玻璃材质：白玻璃 → 深灰玻璃 */
+    --glass-bg: rgba(34, 34, 40, 0.55);
+    --glass-border: rgba(255, 255, 255, 0.10);
+    --card-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    --card-shadow-hover: 0 20px 48px rgba(0, 0, 0, 0.62);
+    /* 主色提亮，保证在深底上的可读性与层次 */
+    --accent: #8a98ff;
+    --accent-light: #a3aeff;
+    --accent-rgb: 138, 152, 255;
+    --progress-bg: rgba(255, 255, 255, 0.10);
+    --toast-bg: rgba(30, 30, 36, 0.92);
+    --toast-text: #eeeef2;
+    --toast-border: rgba(255, 255, 255, 0.12);
+    --focus-ring: #8ea2ff;
+    --focus-ring-rgb: 142, 162, 255;
+    --mask-opacity: 0.30;              /* 深色下适度压暗背景图 */
+    --scrollbar-track: rgba(255, 255, 255, 0.04);
+    --scrollbar-thumb: #4a4a52;
+}
+
+/* ---- 深色主题下需一并处理的硬编码玻璃/浅底表面 ---- */
+:root[data-theme="dark"] .dialog {
+    background: rgba(30, 30, 36, 0.85);
+    border-color: rgba(255, 255, 255, 0.10);
+}
+:root[data-theme="dark"] .settings-nav {
+    background: rgba(0, 0, 0, 0.22);
+    border-right-color: rgba(255, 255, 255, 0.08);
+}
+/* 天气/预警胶囊：硬编码白底在深色下会与亮字糊在一起，翻成深色玻璃恢复可读性 */
+:root[data-theme="dark"] .weather-area,
+:root[data-theme="dark"] .alert-area {
+    background: rgba(34, 34, 40, 0.5);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+/* 设置面板/弹窗内的输入控件由浅底(黑字)翻转为深底(亮字) */
+:root[data-theme="dark"] .dialog textarea,
+:root[data-theme="dark"] .dialog input[type="text"],
+:root[data-theme="dark"] .dialog input[type="password"],
+:root[data-theme="dark"] .dialog input[type="number"],
+:root[data-theme="dark"] .dialog select {
+    background: rgba(0, 0, 0, 0.28);
+    border-color: rgba(255, 255, 255, 0.10);
+    color: var(--text-primary);
+}
+:root[data-theme="dark"] .dialog textarea::placeholder,
+:root[data-theme="dark"] .dialog input::placeholder {
+    color: var(--text-muted);
+}
+
+/* ---- 深色主题下"模糊关闭"的一整套降级：把实色白/浅灰底换成深色实体底，
+      避免高优先级的 blur-*-off 规则把面板强制刷白、导致深色失效。
+      （具体度均高于 components.css 中原降级规则，故不受加载顺序影响。） ---- */
+/* 弹窗（含设置面板） */
+:root[data-theme="dark"] body.blur-modal-off #modalRoot .dialog {
+    background: rgba(30, 30, 36, 0.96);
+}
+/* 顶/底栏/窗口控制/More 面板 Toast */
+:root[data-theme="dark"] body.blur-bars-off .top-capsule,
+:root[data-theme="dark"] body.blur-bars-off .bottom-capsule,
+:root[data-theme="dark"] body.blur-bars-off .window-controls,
+:root[data-theme="dark"] body.blur-bars-off .more-sheet-panel,
+:root[data-theme="dark"] body.blur-bars-off .toast {
+    background: rgba(30, 30, 36, 0.95);
+    border-color: rgba(255, 255, 255, 0.10);
+    color: var(--text-primary);
+}
+/* 天气/预警胶囊、日期按钮、学科胶囊 */
+:root[data-theme="dark"] body.blur-bars-off .weather-area,
+:root[data-theme="dark"] body.blur-bars-off .alert-area,
+:root[data-theme="dark"] body.blur-bars-off .date-btn,
+:root[data-theme="dark"] body.blur-bars-off .subject-pill {
+    background: rgba(34, 34, 40, 0.9);
+}
+/* 作业卡片 + 卡片按钮 */
+:root[data-theme="dark"] body.blur-card-off .homework-card {
+    background-color: rgba(32, 32, 38, 0.95);
+}
+:root[data-theme="dark"] body.blur-card-off .c-act {
+    background: rgba(34, 34, 40, 0.9);
+}
+
+/* ---- 深色主题下首次使用/协议向导的漏网白底（主窗口内 .wizard-*，跟随 data-theme） ---- */
+:root[data-theme="dark"] .wizard-agreement-doc,
+:root[data-theme="dark"] .wizard-doc-body {
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--text-primary);
+}
+:root[data-theme="dark"] .wizard-agreement-tab.active {
+    background: rgba(34, 34, 40, 0.9);
+}
+:root[data-theme="dark"] .wizard-doc-body th,
+:root[data-theme="dark"] .wizard-doc-body td {
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 /* 统一键盘焦点环：用主题色描边替换 Chromium 默认的黄色焦点环。

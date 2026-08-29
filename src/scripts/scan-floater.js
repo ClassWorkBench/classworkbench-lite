@@ -10,6 +10,18 @@
     let images = [];       // dataURL 列表
     let busy = false;      // 是否正在批量插入
 
+    // 跟随全局深浅色：主进程已按外观设置 nativeTheme.themeSource，
+    // 这里读 prefers-color-scheme（其值已随 themeSource 同步）落到 html data-theme，
+    // 复用 base.css 的 :root[data-theme="dark"] 深色变量层；浮窗专用硬编码白底由本页 style 覆盖。
+    function syncTheme() {
+        const dark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    }
+    syncTheme();
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
+    }
+
     const bodyEl = document.body;
     const floatBtn = document.getElementById('floatBtn');
     const floatHit = document.getElementById('floatHit');

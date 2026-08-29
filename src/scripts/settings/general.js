@@ -1,6 +1,6 @@
 // ============================================
 // settings/general.js — 常规设置面板
-// 晚修时段 + 开机自启
+// 外观模式 + 晚修时段 + 开机自启
 // ============================================
 
 window.SettingsModules = window.SettingsModules || {};
@@ -8,14 +8,24 @@ window.SettingsModules = window.SettingsModules || {};
 window.SettingsModules.general = {
     render(ctx) {
         const { settings, escapeHtml, eveningStr } = ctx;
+        const appearance = settings.appearance || 'system';
         return `
                     <!-- 面板：常规设置 -->
                     <div class="settings-panel active" id="panel-general">
                         <div class="panel-header">
                             <h3>常规设置</h3>
-                            <p class="panel-desc">调整晚修时段和开机自启</p>
+                            <p class="panel-desc">调整外观模式、晚修时段和开机自启</p>
                         </div>
                         <div class="panel-body">
+                            <div class="setting-group">
+                                <label>外观模式</label>
+                                <div class="segmented" id="appearanceSegmented" role="radiogroup" aria-label="外观模式">
+                                    <button type="button" class="seg-btn ${appearance === 'system' ? 'active' : ''}" data-mode="system" role="radio" aria-checked="${appearance === 'system'}">跟随系统</button>
+                                    <button type="button" class="seg-btn ${appearance === 'light' ? 'active' : ''}" data-mode="light" role="radio" aria-checked="${appearance === 'light'}">浅色</button>
+                                    <button type="button" class="seg-btn ${appearance === 'dark' ? 'active' : ''}" data-mode="dark" role="radio" aria-checked="${appearance === 'dark'}">深色</button>
+                                </div>
+                                <small class="field-hint">跟随系统会随 Windows 明暗模式自动切换</small>
+                            </div>
                             <div class="setting-group">
                                 <label for="eveningInput">晚修时段</label>
                                 <input id="eveningInput" value="${escapeHtml(eveningStr)}" placeholder="如 19:00-19:50, 20:00-20:50" aria-label="晚修时段">
@@ -41,6 +51,28 @@ window.SettingsModules.general = {
 
     bind(ctx) {
         const { state, saveSettings, toast, Renderer, api } = ctx;
+
+        // ---- 外观模式：分段控制器（跟随系统 / 浅色 / 深色），点击即保存并即时应用 ----
+        const appearanceSeg = document.getElementById('appearanceSegmented');
+        if (appearanceSeg) {
+            const updateSeg = (mode) => {
+                appearanceSeg.querySelectorAll('.seg-btn').forEach(b => {
+                    const active = b.dataset.mode === mode;
+                    b.classList.toggle('active', active);
+                    b.setAttribute('aria-checked', active ? 'true' : 'false');
+                });
+            };
+            appearanceSeg.addEventListener('click', async (e) => {
+                const btn = e.target.closest('.seg-btn');
+                if (!btn) return;
+                const mode = btn.dataset.mode;
+                if (mode === state.settings.appearance) return;
+                state.settings.appearance = mode;
+                updateSeg(mode);
+                if (window.AppStyling) window.AppStyling.applyAppearance();
+                await saveSettings();
+            });
+        }
 
         // ---- 晚修时段：实时校验 + 失焦时保存 ----
         const eveningInput = document.getElementById('eveningInput');

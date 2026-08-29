@@ -274,6 +274,24 @@
             transition: stroke-dashoffset .3s ease .45s;
         }
         .scan-success.show .scan-success-check { stroke-dashoffset: 0; }
+
+        /* ---------- 深色模式：data-theme 由 scan-floater.js 同步（复用 base.css 深色变量），
+           这里只补本浮窗专用/硬编码的白底与浅底控件 ---------- */
+        :root[data-theme="dark"] .scan-panel {
+            background: rgba(30, 30, 36, 0.96);
+            border-color: rgba(255, 255, 255, 0.10);
+        }
+        :root[data-theme="dark"] .scan-success {
+            background: rgba(30, 30, 36, 0.96);
+        }
+        :root[data-theme="dark"] .scan-thumb .chk {
+            background: #22262e;
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        :root[data-theme="dark"] .scan-btn,
+        :root[data-theme="dark"] .scan-act.ghost {
+            background: rgba(255, 255, 255, 0.08);
+        }
     </style>
 </head>
 <body class="collapsed">

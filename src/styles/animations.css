@@ -34,6 +34,19 @@
     }
 }
 
+/* 底栏整体舒缓展开：轻微上浮 + 淡入，起步快、末尾慢慢落定（--transition-expand）。
+   仅首次入场运行一次，配合胶囊自身的收放过渡，避免学科按钮渲染时"啪"地闪现。 */
+@keyframes barRise {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(16px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+}
+
 @keyframes dialogPop {
     from {
         opacity: 0;
