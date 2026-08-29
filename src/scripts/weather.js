@@ -394,7 +394,7 @@
             var endTime = fmtTime(alert.expireTime || alert.endTime);
             var text = alert.description || alert.text || alert.headline || '';
 
-            return '<div style="background:' + c.bg + ';border-left:4px solid ' + c.dot + ';border-radius:12px;padding:14px 16px;margin-bottom:10px;">' +
+            return '<div style="background:' + c.bg + ';border-radius:12px;padding:14px 16px;margin-bottom:10px;">' +
                 '<div style="font-weight:700;font-size:1rem;color:' + c.text + ';margin-bottom:6px;">' + escapeHtml(typeName) + (levelStr ? ' ' + escapeHtml(levelStr) + '预警' : '预警') + '</div>' +
                 (sender ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:3px;">\uD83D\uDCE2 ' + escapeHtml(sender) + '</div>' : '') +
                 (pubTime ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:3px;">\uD83D\uDD50 生效于 ' + escapeHtml(pubTime) + '</div>' : '') +

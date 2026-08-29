@@ -1093,20 +1093,12 @@ textarea:hover::-webkit-resizer {
     box-shadow: 0 3px 10px rgba(var(--accent-rgb, 0, 0, 0), 0.18);
 }
 
-/* 已有作业面板：在 adopt-panel 基础上做差异化视觉（左色条 + 略暗背景 + 顶部小提示） */
+/* 已有作业面板：在 adopt-panel 基础上做差异化视觉（略暗背景 + 顶部小提示） */
 .dialog .adopt-panel.adopt-existing {
     background: rgba(245, 240, 232, 0.55);
     border: 1px solid rgba(212, 184, 134, 0.35);
     box-shadow: 0 4px 16px rgba(160, 130, 80, 0.05);
     position: relative;
-}
-.dialog .adopt-panel.adopt-existing::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 5px;
-    background: linear-gradient(180deg, #d9b888, #b8966a);
-    border-radius: 16px 0 0 16px;
 }
 .dialog .adopt-panel.adopt-existing .sender-line {
     color: #8a7a5a;
@@ -1225,9 +1217,6 @@ textarea:hover::-webkit-resizer {
 }
 .dialog .adopt-panel.adopt-existing .sender-line {
     color: var(--accent);
-}
-.dialog .adopt-panel.adopt-existing::before {
-    background: linear-gradient(180deg, var(--accent-light), var(--accent));
 }
 .dialog .adopt-panel.is-new {
     border-color: rgba(74, 184, 122, 0.55);
