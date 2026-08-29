@@ -84,21 +84,26 @@
         subjectPillsDiv.querySelectorAll('.subject-pill').forEach(btn => {
             const subjId = btn.dataset.subjectId;
             const count = counts[subjId] || 0;
-            let badge = btn.querySelector('.pill-badge-inline');
-            const textSpan = btn.querySelector('.pill-text');
-
+            let slot = btn.querySelector('.pill-badge-slot');
+            if (!slot) {
+                slot = document.createElement('span');
+                slot.className = 'pill-icon-slot pill-badge-slot';
+                slot.style.width = '0px';
+                const badge = document.createElement('span');
+                badge.className = 'pill-badge-inline';
+                slot.appendChild(badge);
+                // 徽标固定在文字右侧：左侧留给"未保存草稿"笔图标，避免挤在一起
+                btn.appendChild(slot);
+            }
+            const badge = slot.querySelector('.pill-badge-inline');
             if (count > 0) {
-                if (!badge) {
-                    badge = document.createElement('span');
-                    badge.className = 'pill-badge-inline';
-                    // 徽标固定在文字右侧：左侧留给"未保存草稿"笔图标，
-                    // 避免 QQ 红点与笔图标挤在文字左侧
-                    btn.appendChild(badge);
-                }
                 badge.textContent = count > 9 ? '9+' : String(count);
-                badge.style.display = 'inline-flex';
+                slot.classList.add('open');
+                window.AppUtils.animateElementWidth(slot, badge.offsetWidth);
             } else {
-                if (badge) badge.remove();
+                badge.textContent = '';
+                slot.classList.remove('open');
+                window.AppUtils.animateElementWidth(slot, 0);
             }
         });
     }

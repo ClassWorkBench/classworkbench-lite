@@ -53,6 +53,21 @@
         }
     });
 
+    /** 日期文字宽度平滑过渡：测新旧内容宽度，用显式 width 驱动 transition */
+    function setDateTextAnimated(text) {
+        const el = state.dom.dateText();
+        if (!el || el.textContent === text) return;
+        const oldW = el.offsetWidth;
+        el.textContent = text;
+        const newW = el.scrollWidth;
+        if (!oldW || oldW === newW) return;
+        el.style.width = oldW + 'px';
+        void el.offsetWidth;          // 强制一帧，让浏览器记录起点
+        el.style.width = newW + 'px';
+        clearTimeout(el._dateW);
+        el._dateW = setTimeout(() => { el.style.width = ''; }, 280);
+    }
+
     const Renderer = {
         renderCards() {
             const cardsGrid = state.dom.cardsGrid();
@@ -305,24 +320,30 @@
                 subjectPillsDiv.dataset.subjectsKey = state.subjectList.map(s => s.id).join(',');
             }
 
-            // 同步"未保存草稿"笔图标（学科胶囊文字左侧）
+            // 同步"未保存草稿"笔图标（学科胶囊文字左侧，插槽带动画）
             const draftMap = (state.settings.drafts && state.settings.drafts.add) || {};
             subjectPillsDiv.querySelectorAll('.subject-pill').forEach(btn => {
                 const sid = btn.dataset.subjectId;
                 const hasDraft = !!draftMap[sid];
-                let icon = btn.querySelector('.pill-draft-icon');
                 const textSpan = btn.querySelector('.pill-text');
-                const name = textSpan ? textSpan.textContent : '';
-                if (hasDraft && !icon && textSpan) {
-                    icon = document.createElement('span');
+                let slot = btn.querySelector('.pill-pen-slot');
+                if (!slot && textSpan) {
+                    slot = document.createElement('span');
+                    slot.className = 'pill-icon-slot pill-pen-slot';
+                    slot.style.width = '0px';
+                    const icon = document.createElement('span');
                     icon.className = 'pill-draft-icon';
                     icon.setAttribute('aria-hidden', 'true');
-                    btn.insertBefore(icon, textSpan);
-                    btn.setAttribute('aria-label', `继续输入 ${name} 作业草稿`);
-                } else if (!hasDraft && icon) {
-                    icon.remove();
-                    btn.setAttribute('aria-label', `添加 ${name} 作业`);
+                    slot.appendChild(icon);
+                    btn.insertBefore(slot, textSpan);
                 }
+                if (slot) {
+                    slot.classList.toggle('open', hasDraft);
+                    const target = hasDraft && slot.firstElementChild ? slot.firstElementChild.offsetWidth : 0;
+                    window.AppUtils.animateElementWidth(slot, target);
+                }
+                const name = textSpan ? textSpan.textContent : '';
+                btn.setAttribute('aria-label', hasDraft ? `继续输入 ${name} 作业草稿` : `添加 ${name} 作业`);
             });
 
             // 更新 hidden 状态（复用节点，触发 CSS 过渡）
@@ -356,9 +377,9 @@
             const d = window.AppUtils.parseLocalDate(viewDate);
             const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
             const todayStr = window.AppUtils.localDateStr();
-            state.dom.dateText().textContent = viewDate === todayStr
+            setDateTextAnimated(viewDate === todayStr
                 ? '今天'
-                : `${d.getMonth() + 1}月${d.getDate()}日 周${weekdays[d.getDay()]}`;
+                : `${d.getMonth() + 1}月${d.getDate()}日 周${weekdays[d.getDay()]}`);
         },
 
         updateEveningProgress() {

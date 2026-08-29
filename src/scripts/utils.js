@@ -148,6 +148,27 @@ function mdToHtml(md) {
     return out.join('\n');
 }
 
+/**
+ * 元素宽度平滑过渡（胶囊/图标槽/日期文字通用）。
+ * 测当前实际宽度 → 设为显式宽度 → 强制一帧 → 过渡到目标宽度 →
+ * 结束后归位（目标 0 则保持 0px，否则恢复 auto）。
+ */
+function animateElementWidth(el, targetWidth) {
+    if (!el) return;
+    const current = el.getBoundingClientRect().width;
+    if (Math.abs(current - targetWidth) < 0.5) {
+        el.style.width = targetWidth === 0 ? '0px' : '';
+        return;
+    }
+    el.style.width = current + 'px';
+    void el.offsetWidth;                    // 强制一帧，记录过渡起点
+    el.style.width = targetWidth + 'px';
+    clearTimeout(el.__wAnim);
+    el.__wAnim = setTimeout(() => {
+        el.style.width = targetWidth === 0 ? '0px' : '';
+    }, 280);
+}
+
 window.AppUtils = {
     mdToHtml,
     todayStr,
@@ -160,4 +181,5 @@ window.AppUtils = {
     escapeHtmlLines,
     renderContentBySetting,
     toast,
+    animateElementWidth,
 };

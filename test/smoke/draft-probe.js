@@ -149,13 +149,17 @@ const CLICK_OUTSIDE = `(() => {
             const btn = document.querySelector('.subject-pill[data-subject-id="math"]');
             const kids = Array.from(btn.children);
             const textSpan = btn.querySelector('.pill-text');
-            const badge = btn.querySelector('.pill-badge-inline');
-            const pen = btn.querySelector('.pill-draft-icon');
+            const penSlot = btn.querySelector('.pill-pen-slot');
+            const badgeSlot = btn.querySelector('.pill-badge-slot');
+            const badge = badgeSlot ? badgeSlot.querySelector('.pill-badge-inline') : null;
             return {
-                hasPen: !!pen,
-                hasBadge: !!badge,
-                badgeAfterText: badge && textSpan ? kids.indexOf(badge) > kids.indexOf(textSpan) : false,
-                order: kids.map(k => k.classList.contains('pill-text') ? 'text' : (k.classList.contains('pill-badge-inline') ? 'badge' : (k.classList.contains('pill-draft-icon') ? 'pen' : k.tagName))).join(' | ')
+                hasPen: !!(penSlot && penSlot.classList.contains('open')),
+                hasBadge: !!(badgeSlot && badgeSlot.classList.contains('open') && badge && badge.textContent),
+                badgeAfterText: !!(badgeSlot && textSpan && kids.indexOf(badgeSlot) > kids.indexOf(textSpan)),
+                penBeforeText: !!(penSlot && textSpan && kids.indexOf(penSlot) < kids.indexOf(textSpan)),
+                order: kids.map(k => k.classList.contains('pill-text') ? 'text'
+                    : (k.classList.contains('pill-pen-slot') ? 'pen'
+                    : (k.classList.contains('pill-badge-slot') ? 'badge' : k.tagName))).join(' | ')
             };
         })())`));
         console.log('QQ 红点共存:', JSON.stringify(conflict));
@@ -191,16 +195,55 @@ const CLICK_OUTSIDE = `(() => {
         console.log('重开恢复内容:', JSON.stringify(restoredEdit));
         await evaluate(page.webSocketDebuggerUrl, `document.getElementById('btnCancel2').click()`);
 
+        // ---- 胶囊插槽宽度动画采样（笔图标 0→14px 平滑过渡，非硬切） ----
+        await evaluate(page.webSocketDebuggerUrl, `(() => {
+            window.AppState.settings.drafts.add.math = '动画采样草稿';
+            window.Renderer.renderAll();
+            const slot = document.querySelector('.subject-pill[data-subject-id="math"] .pill-pen-slot');
+            window.__slotSamples = [];
+            const raf = () => {
+                window.__slotSamples.push(Math.round(slot.getBoundingClientRect().width));
+                if (window.__slotSamples.length < 12) requestAnimationFrame(raf);
+            };
+            raf();
+            return 'armed';
+        })()`);
+        await sleep(700);
+        const slotSamples = JSON.parse(await evaluate(page.webSocketDebuggerUrl, `JSON.stringify(window.__slotSamples)`));
+        console.log('笔图标槽宽度采样:', slotSamples.join(' '));
+
+        // ---- 日期胶囊宽度动画采样（今天 → 明天，平滑伸缩） ----
+        await evaluate(page.webSocketDebuggerUrl, `(() => {
+            const today = window.AppUtils.localDateStr();
+            window.AppState.setViewDate(today, {});
+            const el = document.getElementById('dateText');
+            window.__dateSamples = [];
+            const raf = () => {
+                window.__dateSamples.push(Math.round(el.getBoundingClientRect().width));
+                if (window.__dateSamples.length < 12) requestAnimationFrame(raf);
+            };
+            const tomorrow = window.AppUtils.shiftDateStr(today, 1);
+            raf();
+            window.AppState.setViewDate(tomorrow, {});
+            return 'armed';
+        })()`);
+        await sleep(700);
+        const dateSamples = JSON.parse(await evaluate(page.webSocketDebuggerUrl, `JSON.stringify(window.__dateSamples)`));
+        console.log('日期胶囊宽度采样:', dateSamples.join(' '));
+
         const addOk = afterAdd.draft === '草稿内容A\n第二行' && afterAdd.pillIcon === true && restored === '草稿内容A\n第二行';
         const editOk = afterEdit.draft !== null && afterEdit.draft.indexOf('新修改内容') >= 0 && afterEdit.cardIcon === true && restoredEdit.indexOf('新修改内容') >= 0;
         const colorOk = afterAdd.pillIconColor === afterAdd.pillColor && afterEdit.cardIconColor === afterEdit.cardSubjectColor;
-        const conflictOk = conflict.hasPen === true && conflict.hasBadge === true && conflict.badgeAfterText === true;
+        const conflictOk = conflict.hasPen === true && conflict.hasBadge === true && conflict.badgeAfterText === true && conflict.penBeforeText === true;
+        const slotAnimOk = slotSamples.some(w => w > 0 && w < 14) && slotSamples[slotSamples.length - 1] >= 14;
+        const dateAnimOk = dateSamples[0] < dateSamples[dateSamples.length - 1] &&
+            dateSamples.some((w, i) => i > 0 && w > dateSamples[0] && w < dateSamples[dateSamples.length - 1]);
         console.log('追色校验: 胶囊', afterAdd.pillIconColor, '===', afterAdd.pillColor,
             '| 卡片', afterEdit.cardIconColor, '===', afterEdit.cardSubjectColor);
-        console.log('\n结论:', addOk && editOk && colorOk && conflictOk
-            ? '✓ 草稿/笔图标/追色/QQ红点共存 全部正常'
+        console.log('\n结论:', addOk && editOk && colorOk && conflictOk && slotAnimOk && dateAnimOk
+            ? '✓ 草稿/追色/共存/胶囊动画 全部正常'
             : '✗ 存在异常（见上方输出）');
-        process.exitCode = addOk && editOk && colorOk && conflictOk ? 0 : 1;
+        process.exitCode = addOk && editOk && colorOk && conflictOk && slotAnimOk && dateAnimOk ? 0 : 1;
     } catch (e) {
         console.error('探测失败:', e.message);
         process.exitCode = 1;

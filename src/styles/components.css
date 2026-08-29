@@ -486,6 +486,13 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     transform: scale(0.92);
     background: rgba(0, 0, 0, 0.08);
 }
+/* 日期文字：JS 测量新旧宽度驱动 width 过渡，今天 ↔ 具体日期切换时胶囊平滑伸缩 */
+#dateText {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: width 0.25s var(--transition-smooth);
+}
 @media (hover: hover) {
     .date-btn:hover {
         background: rgba(0, 0, 0, 0.06);
@@ -528,7 +535,6 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     -webkit-backdrop-filter: blur(6px) saturate(1.15);
     display: flex;
     align-items: center;
-    gap: 4px;
     letter-spacing: 0.3px;
 }
 .subject-pill:last-child,
@@ -567,6 +573,22 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     vertical-align: middle;
     flex-shrink: 0;
     pointer-events: none;
+}
+
+/* 胶囊图标插槽：宽度由 JS 测宽驱动过渡（与日期胶囊同一套机制），
+   让胶囊宽度随笔图标/红点出现平滑伸缩，避免"直接生硬变大变小"；
+   槽常驻，闭合时 width:0 对布局无影响 */
+.pill-icon-slot {
+    overflow: hidden;
+    white-space: nowrap;
+    transition: width 0.25s var(--transition-smooth),
+                margin 0.25s var(--transition-smooth);
+}
+.pill-icon-slot.pill-pen-slot.open {
+    margin-right: 4px;
+}
+.pill-icon-slot.pill-badge-slot.open {
+    margin-left: 4px;
 }
 
 /* 底栏“更多”按钮 */
