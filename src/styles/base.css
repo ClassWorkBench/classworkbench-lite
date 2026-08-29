@@ -3,6 +3,12 @@
  * CSS 变量、全局重置、自定义滚动条、body 基础
  * ============================================ */
 
+/* 触摸屏/触控笔：去掉元素被点按时 Chromium 施加的灰色半透明高亮框。
+   仅影响触屏点击反馈，不影响键盘导航（键盘焦点环走 :focus-visible 的 outline）。 */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
 :root {
     --font-size-content: 26px;
     --radius-capsule: 34px;
