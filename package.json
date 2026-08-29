@@ -8,7 +8,7 @@
     "dev": "electron .",
     "build": "electron-builder",
     "check:emoji": "node tools/check-emoji.mjs",
-    "test": "node test/check-wiring.mjs",
+    "test": "node test/check-wiring.mjs && node test/check-custom-select.mjs",
     "test:all": "npm test && npm run check:emoji",
     "smoke:app": "electron . --remote-debugging-port=9222",
     "smoke:inspect": "electron test/smoke/inspect-data.js",

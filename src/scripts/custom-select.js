@@ -14,6 +14,8 @@
 
     const ROOT_SELECTOR = 'select[data-cselect]';
 
+    let cselectSeq = 0;   // 弹层唯一 id 计数器
+
     // 当前打开的弹层（同时只允许一个）
     let activePop = null;
 
@@ -81,6 +83,29 @@
         pop.setAttribute('role', 'listbox');
         pop.setAttribute('tabindex', '-1');
         pop.style.display = 'none';
+        // 弹层唯一 id，供 trigger 的 aria-controls / aria-activedescendant 引用
+        const popId = 'cselect-pop-' + (++cselectSeq);
+        pop.id = popId;
+        trigger.setAttribute('aria-controls', popId);
+
+        // 无障碍：置顶当前活动的 option id，供读屏朗读
+        function setActiveDesc(id) {
+            trigger.setAttribute('aria-activedescendant', id || '');
+        }
+
+        // disabled 态：select.disabled 同步到按钮（禁用点击/键盘，置 aria-disabled）
+        function applyDisabled() {
+            const dis = !!select.disabled;
+            trigger.disabled = dis;
+            trigger.setAttribute('aria-disabled', String(dis));
+            trigger.classList.toggle('is-disabled', dis);
+            if (dis) closeActive();
+        }
+
+        // 焦点守卫：隐藏的 select 一旦被聚焦，强制转回 trigger，杜绝虚空焦点
+        select.addEventListener('focus', () => {
+            if (!select.disabled && trigger.focus) trigger.focus();
+        });
 
         const list = document.createElement('div');
         list.className = 'cselect-list';
@@ -102,6 +127,7 @@
                 }
                 const item = document.createElement('div');
                 item.className = 'cselect-opt';
+                item.id = popId + '-opt' + idx;
                 item.setAttribute('role', 'option');
                 item.setAttribute('aria-selected', opt.selected ? 'true' : 'false');
                 item.setAttribute('data-idx', String(idx));
@@ -129,6 +155,7 @@
             const cur = Array.from(listEl.querySelectorAll('.cselect-opt')).find(el => el.getAttribute('aria-selected') === 'true');
             listEl.querySelectorAll('.cselect-opt.hover').forEach(el => el.classList.remove('hover'));
             if (cur) cur.classList.add('hover');
+            setActiveDesc(cur ? cur.id : '');
 
             // 定位：相对按钮视口坐标，底部溢出则向上展开
             const rect = trigger.getBoundingClientRect();
@@ -170,6 +197,7 @@
             window.removeEventListener('scroll', onScroll, true);
             if (pop.parentNode) pop.parentNode.removeChild(pop);
             trigger.setAttribute('aria-expanded', 'false');
+            setActiveDesc('');
             trigger.classList.remove('open');
         }
 
@@ -202,6 +230,7 @@
                     const tgt = opts[cur] || opts[0];
                     list.querySelectorAll('.cselect-opt.hover').forEach(el => el.classList.remove('hover'));
                     if (tgt) tgt.classList.add('hover');
+                    setActiveDesc(tgt ? tgt.id : '');
                     return;
                 }
                 return;
@@ -218,6 +247,7 @@
                 list.querySelectorAll('.cselect-opt.hover').forEach(el => el.classList.remove('hover'));
                 hoverList[ni].classList.add('hover');
                 hoverList[ni].scrollIntoView({ block: 'nearest' });
+                setActiveDesc(hoverList[ni].id);
             } else if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 if (curHover >= 0) commit(Number(hoverList[curHover].dataset.idx));
@@ -244,12 +274,13 @@
         pop.addEventListener('keydown', onKeydown);
 
         syncLabel();
-        // 摄像头等异步填充 options：内容变化时同步按钮文本
-        // （弹层每次 open 都重建，这里只确保关闭态按钮显示正确）
+        // 异步填充 options / disabled 属性变化：同步按钮文本与禁用态
+        // （弹层每次 open 都重建，这里只确保关闭态按钮显示/禁用正确）
         try {
-            const optObserver = new MutationObserver(syncLabel);
-            optObserver.observe(select, { childList: true, subtree: true });
+            const comboObserver = new MutationObserver(() => { syncLabel(); applyDisabled(); });
+            comboObserver.observe(select, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
         } catch (_) {}
+        applyDisabled();
         return true;
     }
 

@@ -4039,3 +4039,22 @@ select.cselect-native {
 :root[data-theme="dark"] .cselect-pop .cselect-arrow {
     border-color: var(--text-muted);
 }
+
+/* 禁用态：来源 select 被 disabled 时按钮视觉禁用 */
+.cselect-trigger.is-disabled,
+.cselect-trigger:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* 减弱动画：弹层入场与箭头过渡统一收紧为轻淡入淡出（与全 app 一致） */
+body.reduce-anim .cselect-pop {
+    animation-duration: 0.2s !important;
+    animation-timing-function: ease-out !important;
+}
+body.reduce-anim .cselect-trigger,
+body.reduce-anim .cselect-trigger .cselect-arrow {
+    transition-duration: 0.2s !important;
+    transition-timing-function: ease-out !important;
+}
