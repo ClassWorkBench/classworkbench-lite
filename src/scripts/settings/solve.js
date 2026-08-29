@@ -20,7 +20,7 @@ window.SettingsModules.solve = {
                             <div class="setting-group">
                                 <label for="solveCameraSelect">展台 / 摄像头</label>
                                 <div class="setting-row">
-                                    <select id="solveCameraSelect" class="input-flex" aria-label="选择摄像头">
+                                    <select id="solveCameraSelect" class="input-flex" data-cselect aria-label="选择摄像头">
                                         <option value="">正在扫描摄像头…</option>
                                     </select>
                                     <button class="btn" id="solveCameraRefresh" type="button" aria-label="刷新摄像头列表">刷新</button>

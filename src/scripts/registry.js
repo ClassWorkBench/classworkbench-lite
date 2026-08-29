@@ -31,6 +31,7 @@
             { file: 'src/scripts/search.js', exposes: ['AppSearch'] },
             { file: 'src/scripts/dialogs.js', exposes: ['AppDialogs'] },
             { file: 'src/scripts/color-picker.js', exposes: ['ColorPicker'] },
+            { file: 'src/scripts/custom-select.js', exposes: ['AppSelect'] },
             { file: 'src/scripts/archive-renderer.js', exposes: ['ArchiveView'] },
             { file: 'src/scripts/homework-engine.js', exposes: ['HomeworkEngine'] },
             { file: 'src/scripts/qq-pending-dialog.js', exposes: ['QQPending'] },

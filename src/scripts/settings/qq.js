@@ -35,7 +35,7 @@ window.SettingsModules.qq = {
                                     <div id="qqTeachersList" class="subject-manage-list"></div>
                                     <div class="qq-add-row">
                                         <input id="newTeacherName" placeholder="QQ 昵称" class="input-flex" aria-label="老师昵称">
-                                        <select id="newTeacherSubject" aria-label="老师学科">
+                                        <select id="newTeacherSubject" data-cselect aria-label="老师学科">
                                             <option value="">请选学科</option>
                                             ${state.subjectList.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}
                                         </select>
@@ -158,7 +158,7 @@ window.SettingsModules.qq = {
                 return `
                     <div class="subject-manage-item">
                         <span class="teacher-name">${escapeHtml(t.name)}</span>
-                        <select class="teacher-subject-select" data-teacher-subject="${i}" aria-label="为 ${escapeHtml(t.name)} 选择学科">${sel}</select>
+                        <select class="teacher-subject-select" data-cselect data-teacher-subject="${i}" aria-label="为 ${escapeHtml(t.name)} 选择学科">${sel}</select>
                         <button class="btn danger btn-danger-sm" data-remove-teacher="${i}" aria-label="删除 ${escapeHtml(t.name)}">删除</button>
                     </div>
                 `;

@@ -493,11 +493,14 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     font-size: 0.85rem;
     cursor: pointer;
     white-space: nowrap;
-    /* 收起/展开统一走 max-width（width:auto ↔ 0 不可过渡，会造成展开时瞬间弹开） */
-    transition: opacity 0.3s var(--transition-smooth),
-                max-width 0.3s var(--transition-smooth),
-                padding 0.3s var(--transition-smooth), margin 0.3s var(--transition-smooth),
-                border-width 0.3s var(--transition-smooth), background 0.25s var(--transition-smooth);
+    /* 收起/展开统一走 max-width（width:auto ↔ 0 不可过渡，会造成展开时瞬间弹开）。
+       展开用舒缓缓出贝塞尔（--transition-expand），末尾慢慢落定，开合不抽搐；
+       will-change 提示 GPU 负责这几条高频重绘属性，缓解 backdrop-filter 的展开闪烁。 */
+    transition: opacity 0.45s var(--transition-expand),
+                max-width 0.45s var(--transition-expand),
+                padding 0.45s var(--transition-expand), margin 0.45s var(--transition-expand),
+                border-width 0.45s var(--transition-expand), background 0.25s var(--transition-smooth);
+    will-change: max-width, opacity, padding;
     width: auto;
     max-width: 300px;
     margin-right: 6px;
@@ -3876,3 +3879,163 @@ body.reduce-anim .cp-pop {
 .orient-controls { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .orient-controls .toggle-row { margin-top: 0; width: 100%; }
 body.reduce-anim .orient-preview video { transition: none; }
+
+/* ============================================
+ * 自定义下拉（AppSelect 增强原生 <select>）
+ * 触发按钮是玻璃胶囊样式，弹出列表挂 body 顶层（fixed），
+ * 完全跟随应用深浅色（原生系统下拉做不到）。
+ * ============================================ */
+
+/* 原生 select 视觉隐藏但仍在 DOM（代码仍可读 .value/监听 change） */
+select.cselect-native {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    clip: rect(0 0 0 0) !important;
+    pointer-events: none;
+}
+
+/* 包裹容器：继承原 select 的布局类（input-flex 等），默认按内容宽 */
+.cselect-wrap {
+    position: relative;
+    display: inline-flex;
+    max-width: 100%;
+    min-width: 0;
+}
+
+/* 触发按钮 */
+.cselect-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1.5px solid rgba(0, 0, 0, 0.10);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.03);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    line-height: 1.2;
+    padding: 8px 12px;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+    transition: border-color 0.2s var(--transition-smooth),
+                background 0.2s var(--transition-smooth),
+                box-shadow 0.2s var(--transition-smooth);
+}
+.cselect-trigger .cselect-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-primary);
+}
+.cselect-trigger .cselect-arrow {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid var(--text-muted);
+    border-bottom: 2px solid var(--text-muted);
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform 0.2s var(--transition-smooth);
+    margin-right: 2px;
+}
+.cselect-trigger.open .cselect-arrow {
+    transform: translateY(2px) rotate(225deg);
+}
+.cselect-trigger:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+.cselect-trigger:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* 弹出列表（fixed 于 body 顶层） */
+.cselect-pop {
+    position: fixed;
+    z-index: 2147483000;
+    margin-top: 4px;
+    padding: 4px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+    box-sizing: border-box;
+    animation: cselectIn 0.22s var(--transition-push, cubic-bezier(0.22,1,0.36,1));
+}
+@keyframes cselectIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.cselect-list {
+    max-height: 280px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.cselect-list::-webkit-scrollbar { width: 6px; }
+.cselect-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,.18); border-radius: 3px; }
+
+.cselect-opt {
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+.cselect-opt:hover,
+.cselect-opt.hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+.cselect-opt[aria-selected="true"] {
+    color: var(--accent);
+    font-weight: 600;
+}
+.cselect-opt.is-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+.cselect-group {
+    padding: 6px 10px 2px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+/* ---- 深色模式：玻璃面板转为深色实体（跟随 data-theme） ---- */
+:root[data-theme="dark"] .cselect-trigger {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+:root[data-theme="dark"] .cselect-trigger:hover {
+    background: rgba(255, 255, 255, 0.10);
+}
+:root[data-theme="dark"] .cselect-pop {
+    background: rgba(30, 30, 36, 0.97);
+    border-color: rgba(255, 255, 255, 0.10);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+:root[data-theme="dark"] .cselect-opt:hover,
+:root[data-theme="dark"] .cselect-opt.hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+:root[data-theme="dark"] .cselect-pop .cselect-arrow {
+    border-color: var(--text-muted);
+}

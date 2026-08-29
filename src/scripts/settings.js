@@ -168,6 +168,13 @@
         if (solveCleanup) disposers.push(solveCleanup);
         M.data.bind(ctx);
         M.about.bind(ctx);
+
+        // 自定义下拉：增强 dialog 内所有原生 <select>（含后续动态重建的，由内部 Observer 承接）；
+        // 关闭设置时随 disposers 一起卸载并收掉弹层。
+        if (window.AppSelect) {
+            try { disposers.push(window.AppSelect.mount(dialog)); }
+            catch (e) { console.error('[settings] 挂载自定义下拉失败:', e); }
+        }
     }
 
     // 打开内嵌归档视图：设置关闭后独立打开的归档模态框
