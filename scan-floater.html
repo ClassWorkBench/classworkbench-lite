@@ -275,6 +275,22 @@
         }
         .scan-success.show .scan-success-check { stroke-dashoffset: 0; }
 
+        /* ---------- 减弱动画（body.reduce-anim，跟随主窗口 settings.reduceAnimation） ----------
+           形态切换只淡入淡出（去掉缩放/回弹）；成功对勾不再画线，整体淡入。 */
+        body.reduce-anim .scan-float-btn,
+        body.reduce-anim .scan-panel {
+            transform: none !important;
+            transition: opacity 0.2s ease !important;
+        }
+        body.reduce-anim .scan-success {
+            transition: opacity 0.2s ease !important;
+        }
+        body.reduce-anim .scan-success-circle,
+        body.reduce-anim .scan-success-check {
+            stroke-dashoffset: 0 !important;
+            transition: none !important;
+        }
+
         /* ---------- 深色模式：data-theme 由 scan-floater.js 同步（复用 base.css 深色变量），
            这里只补本浮窗专用/硬编码的白底与浅底控件 ---------- */
         :root[data-theme="dark"] .scan-panel {

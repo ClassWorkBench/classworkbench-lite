@@ -231,9 +231,9 @@
     // ============ 贴边探头模式 ============
     // 收起双泳道：卡片缩条时长须与主进程窗口矩形动画（DOCK_ANIM_MS=240）对齐，
     // 两泳道同缓动同时长 → 全程锁步，避免"先缩原地再滑向边缘"的两段感。
-    // 减弱动画下主进程时长减半，这里同步减半。
+    // 减弱动画下不走缩条，改为卡片淡出 + 箭头淡入（时长与 CSS 过渡 0.3s 对齐）。
     const PROBE_SHRINK_MS_NORMAL = 240;
-    const PROBE_SHRINK_MS_REDUCED = 120;
+    const PROBE_FADE_MS_REDUCED = 300;
     let probeTimer = null;        // 收缩动画结束 → 切入探头模式的延迟定时器
     let probeSeq = 0;             // 递增 token：快速往返时让旧定时器/旧动画回调全部失效
 
@@ -270,19 +270,26 @@
             if (e.pointerType === 'mouse') api.refade();
         };
 
-        // 收起双泳道：卡片先缩成彩条（transform scale + 学科实色 + 胶囊圆角），
-        // 动画结束后切入探头模式（窗口矩形动画由主进程并行驱动，两泳道锁步）
+        // 收起双泳道：标准模式卡片先缩成彩条；减弱动画改为卡片淡出 → 箭头淡入
         clearProbeTimers();
-        cardEl.classList.add('probe-shrink');
-        const shrinkMs = document.body.classList.contains('reduce-anim')
-            ? PROBE_SHRINK_MS_REDUCED
-            : PROBE_SHRINK_MS_NORMAL;
-        probeTimer = setTimeout(() => {
-            probeTimer = null;
-            if (seq !== probeSeq) return;
-            bodyEl.classList.add('probe-mode');
-            cardEl.classList.remove('probe-shrink');
-        }, shrinkMs);
+        cardEl.classList.remove('probe-fade-in');
+        if (document.body.classList.contains('reduce-anim')) {
+            cardEl.classList.add('probe-fade-out');
+            probeTimer = setTimeout(() => {
+                probeTimer = null;
+                if (seq !== probeSeq) return;
+                bodyEl.classList.add('probe-mode');
+                cardEl.classList.remove('probe-fade-out');
+            }, PROBE_FADE_MS_REDUCED);
+        } else {
+            cardEl.classList.add('probe-shrink');
+            probeTimer = setTimeout(() => {
+                probeTimer = null;
+                if (seq !== probeSeq) return;
+                bodyEl.classList.add('probe-mode');
+                cardEl.classList.remove('probe-shrink');
+            }, PROBE_SHRINK_MS_NORMAL);
+        }
     }
 
     // 兜底：强制刷新 -webkit-app-region drag 区域注册。
@@ -311,25 +318,37 @@
 
         const wasInProbe = bodyEl.classList.contains('probe-mode');
         if (wasInProbe && cardEl) {
-            // 展开双泳道：保持收缩态显示 → 加 spring 过渡类 → 下一帧移除收缩 → 彩条弹出成卡片。
-            // probe-left/right 延迟移除，保证展开期间 transform-origin 仍指向贴边侧
-            cardEl.classList.add('probe-shrink', 'probe-grow');
-            bodyEl.classList.remove('probe-mode');
-            requestAnimationFrame(() => requestAnimationFrame(() => {
-                if (seq !== probeSeq) return;
-                cardEl.classList.remove('probe-shrink');
+            if (document.body.classList.contains('reduce-anim')) {
+                // 减弱动画：箭头隐藏，卡片淡入恢复
+                bodyEl.classList.remove('probe-mode');
+                cardEl.classList.add('probe-fade-in');
                 setTimeout(() => {
-                    cardEl.classList.remove('probe-grow');
-                    if (!bodyEl.classList.contains('probe-mode')) {
-                        bodyEl.classList.remove('probe-left', 'probe-right');
-                    }
-                    // ★ 展开动画结束后强制刷新 drag 区域注册（兜底防失效）
+                    if (seq !== probeSeq) return;
+                    cardEl.classList.remove('probe-fade-in');
+                    bodyEl.classList.remove('probe-left', 'probe-right');
                     refreshDragRegion(cardEl);
-                }, 320);
-            }));
+                }, PROBE_FADE_MS_REDUCED);
+            } else {
+                // 展开双泳道：保持收缩态显示 → 加 spring 过渡类 → 下一帧移除收缩 → 彩条弹出成卡片。
+                // probe-left/right 延迟移除，保证展开期间 transform-origin 仍指向贴边侧
+                cardEl.classList.add('probe-shrink', 'probe-grow');
+                bodyEl.classList.remove('probe-mode');
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    if (seq !== probeSeq) return;
+                    cardEl.classList.remove('probe-shrink');
+                    setTimeout(() => {
+                        cardEl.classList.remove('probe-grow');
+                        if (!bodyEl.classList.contains('probe-mode')) {
+                            bodyEl.classList.remove('probe-left', 'probe-right');
+                        }
+                        // ★ 展开动画结束后强制刷新 drag 区域注册（兜底防失效）
+                        refreshDragRegion(cardEl);
+                    }, 320);
+                }));
+            }
         } else {
             // 收缩动画进行中被反调（快速往返）：transition 反向平滑恢复，不切探头模式
-            if (cardEl) cardEl.classList.remove('probe-shrink', 'probe-grow');
+            if (cardEl) cardEl.classList.remove('probe-shrink', 'probe-grow', 'probe-fade-out', 'probe-fade-in');
             bodyEl.classList.remove('probe-mode', 'probe-left', 'probe-right');
             // 即使是快速反调，也刷新一次 drag 注册，避免竞态残留
             refreshDragRegion(cardEl);

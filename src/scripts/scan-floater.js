@@ -37,6 +37,11 @@
 
     function setTip(t) { if (tipEl) tipEl.textContent = t; }
 
+    /** 减弱动画开关：挂在 body class 上，由本页 style 的 reduce-anim 覆盖生效 */
+    function applyReduceAnimation(reduce) {
+        document.body.classList.toggle('reduce-anim', !!reduce);
+    }
+
     /**
      * 形态切换：
      * - 展开：先 resize 窗口到 364×488（瞬间），CSS 过渡让面板从按钮位置丝滑放大、按钮淡出
@@ -183,9 +188,11 @@
         saveBtn.addEventListener('click', saveAll);
 
         // 主进程通知数据更新（首页打开时）→ 重新拉取并保持形态
-        api.onData(() => {
+        api.onData((data) => {
+            if (data) applyReduceAnimation(data.reduceAnimation);
             api.list().then((r) => {
                 if (r && r.ok) {
+                    applyReduceAnimation(r.reduceAnimation);
                     images = (r.images || []).map(x => (x && x.data) || x);
                     render();
                 }
@@ -197,6 +204,7 @@
         bind();
         const r = await api.list();
         if (r && r.ok) {
+            applyReduceAnimation(r.reduceAnimation);
             images = (r.images || []).map(x => (x && x.data) || x);
             render();
         }

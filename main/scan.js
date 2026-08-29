@@ -55,7 +55,7 @@ function getSaveDir(app, fs, now) {
  */
 function createScanModule({
     BrowserWindow, screen, clipboard, nativeImage,
-    app, path, fs, log, spawn, assetsDir, getMainWindow
+    app, path, fs, log, spawn, assetsDir, getMainWindow, getSettings
 }) {
 
     // ---- 模块级状态：浮窗实例、形态、待插入图片（单一数据源） ----
@@ -192,7 +192,10 @@ function createScanModule({
     function broadcast() {
         const w = state.win;
         if (w && !w.isDestroyed() && w.webContents) {
-            w.webContents.send('scan:data', { count: state.images.length });
+            w.webContents.send('scan:data', {
+                count: state.images.length,
+                reduceAnimation: !!(getSettings && getSettings().reduceAnimation)
+            });
         }
     }
 

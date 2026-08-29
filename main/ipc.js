@@ -353,7 +353,11 @@ function setupIpc({
     ipcMain.handle('scan:saveNow', (_event, imgs) => scan.saveToDesktop(imgs));
 
     // 浮窗 init：拉取待插入图片列表（仅回传图片数据，供渲染层渲染清单）
-    ipcMain.handle('scan:list', () => ({ ok: true, images: scan.getImages() }));
+    ipcMain.handle('scan:list', () => ({
+        ok: true,
+        images: scan.getImages(),
+        reduceAnimation: !!((store.get('settings') || {}).reduceAnimation)
+    }));
 }
 
 module.exports = { setupIpc };
