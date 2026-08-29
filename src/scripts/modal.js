@@ -45,7 +45,7 @@
         if (focusable) setTimeout(() => focusable.focus(), 50);
 
         let closing = false;
-        const close = () => {
+        const close = (reason) => {
             // 多个关闭入口（遮罩点击 / Esc / 按钮）可能并发，加守卫避免动画重播
             if (closing) return;
             closing = true;
@@ -64,7 +64,7 @@
                 if (pf && pf.isConnected && isVisible(pf)) {
                     try { pf.focus({ preventScroll: true }); } catch (_) {}
                 }
-                if (onClose) onClose();
+                if (onClose) onClose(reason || 'button');
             }, 250);
         };
         // 仅当 mousedown 与 mouseup 均直接发生在 overlay 本身时才视为“点击外部”关闭。
@@ -75,11 +75,11 @@
             mouseDownOnOverlay = (e.target === overlay);
         });
         overlay.addEventListener('mouseup', e => {
-            if (mouseDownOnOverlay && e.target === overlay) close();
+            if (mouseDownOnOverlay && e.target === overlay) close('overlay');
             mouseDownOnOverlay = false;
         });
         overlay.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') close();
+            if (e.key === 'Escape') close('escape');
             // 焦点圈闭：aria-modal 必须配合真实 Tab 圈闭才成立，
             // 否则 Tab 会一路逃逸到背景页面的可聚焦元素上
             else if (e.key === 'Tab') {

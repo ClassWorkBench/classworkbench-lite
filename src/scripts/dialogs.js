@@ -11,6 +11,31 @@
     const { persistHomeworks, saveSettings } = window.AppStorage;
     const Renderer = window.Renderer;
 
+    // ---- 未保存内容草稿：点击空白/Esc 退出时保留，胶囊/卡片显示笔图标 ----
+    function getDrafts() {
+        if (!state.settings.drafts || typeof state.settings.drafts !== 'object') {
+            state.settings.drafts = { add: {}, edit: {} };
+        }
+        if (!state.settings.drafts.add || typeof state.settings.drafts.add !== 'object') state.settings.drafts.add = {};
+        if (!state.settings.drafts.edit || typeof state.settings.drafts.edit !== 'object') state.settings.drafts.edit = {};
+        return state.settings.drafts;
+    }
+
+    function saveDraft(kind, key, content) {
+        getDrafts()[kind][key] = content;
+        saveSettings().catch(() => {});
+        Renderer.renderAll();
+    }
+
+    function clearDraft(kind, key) {
+        const drafts = getDrafts();
+        if (key in drafts[kind]) {
+            delete drafts[kind][key];
+            saveSettings().catch(() => {});
+            Renderer.renderAll();
+        }
+    }
+
     // 给 textarea 绑定/解绑自动编号回车逻辑
     function bindAutoNumber(ta, enabledRef) {
         function onKeyDown(e) {
@@ -64,6 +89,7 @@
 
     function openAddDialog(subject) {
         const enabledRef = { value: state.settings.autoNumber !== false };
+        const draft = getDrafts().add[subject.id] || '';
         const html = `
             <h3>${emoji('📝')} ${escapeHtml(subject.name)} 作业</h3>
             <textarea id="newContent" placeholder="输入作业内容，每行一条…（开启自动编号时回车自动续写编号）" style="min-height:180px;" aria-label="作业内容"></textarea>
@@ -75,7 +101,15 @@
                 <button class="btn primary" id="btnSave" aria-label="保存作业">保存</button>
             </div>
         `;
-        const { close } = showModal(html);
+        const { close } = showModal(html, (reason) => {
+            // 空白点击 / Esc 关闭：保留输入为草稿；显式按钮关闭由按钮自身处理
+            if (reason === 'overlay' || reason === 'escape') {
+                const v = ta.value.trim();
+                if (v) saveDraft('add', subject.id, v);
+                else clearDraft('add', subject.id);
+            }
+            unbindAutoNum();
+        });
         const ta = document.getElementById('newContent');
         const toggle = document.getElementById('autoNumToggle');
 
@@ -96,21 +130,31 @@
             try { await saveSettings(); } catch (_) {}
         });
 
-        setTimeout(() => {
-            if (enabledRef.value && !ta.value.trim()) {
-                ta.value = '1. ';
-                requestAnimationFrame(() => {
-                    ta.selectionStart = ta.selectionEnd = ta.value.length;
-                    ta.focus();
-                });
-            } else {
+        if (draft) {
+            // 恢复未保存草稿
+            ta.value = draft;
+            setTimeout(() => {
                 ta.focus();
-            }
-        }, 120);
+                ta.selectionStart = ta.selectionEnd = ta.value.length;
+            }, 120);
+        } else {
+            setTimeout(() => {
+                if (enabledRef.value && !ta.value.trim()) {
+                    ta.value = '1. ';
+                    requestAnimationFrame(() => {
+                        ta.selectionStart = ta.selectionEnd = ta.value.length;
+                        ta.focus();
+                    });
+                } else {
+                    ta.focus();
+                }
+            }, 120);
+        }
 
         document.getElementById('btnCancel').addEventListener('click', () => {
+            clearDraft('add', subject.id);
             unbindAutoNum();
-            close();
+            close('cancel');
         });
         document.getElementById('btnSave').addEventListener('click', async () => {
             const content = ta.value.trim();
@@ -132,18 +176,20 @@
             }
             const ok = await persistHomeworks(newHomeworks);
             if (ok) {
+                clearDraft('add', subject.id);
                 Renderer.renderAll();
                 unbindAutoNum();
-                close();
+                close('save');
             }
         });
     }
 
     function openModifyDialog(hw) {
         const enabledRef = { value: state.settings.autoNumber !== false };
+        const draft = getDrafts().edit[hw.id] || '';
         const html = `
             <h3>${emoji('✏️')} 修改 ${escapeHtml(hw.subjectName)}</h3>
-            <textarea id="modContent" style="min-height:180px;" aria-label="修改作业内容">${escapeHtml(hw.content)}</textarea>
+            <textarea id="modContent" style="min-height:180px;" aria-label="修改作业内容">${escapeHtml(draft || hw.content)}</textarea>
             <div class="dialog-btn-row">
                 <button class="btn auto-num-btn ${enabledRef.value ? 'on' : 'off'}" id="autoNumToggle2" aria-pressed="${enabledRef.value}" aria-label="自动编号开关">
                     自动编号：${enabledRef.value ? '打开' : '关闭'}
@@ -152,7 +198,15 @@
                 <button class="btn primary" id="btnSave2" aria-label="保存修改">保存</button>
             </div>
         `;
-        const { close } = showModal(html);
+        const { close } = showModal(html, (reason) => {
+            // 空白点击 / Esc 关闭：内容有改动则保留草稿
+            if (reason === 'overlay' || reason === 'escape') {
+                const v = ta.value.trim();
+                if (v && v !== hw.content.trim()) saveDraft('edit', hw.id, v);
+                else clearDraft('edit', hw.id);
+            }
+            unbindAutoNum();
+        });
         const ta = document.getElementById('modContent');
         const toggle = document.getElementById('autoNumToggle2');
 
@@ -180,8 +234,9 @@
         }, 120);
 
         document.getElementById('btnCancel2').addEventListener('click', () => {
+            clearDraft('edit', hw.id);
             unbindAutoNum();
-            close();
+            close('cancel');
         });
         document.getElementById('btnSave2').addEventListener('click', async () => {
             const v = ta.value.trim();
@@ -191,9 +246,10 @@
             );
             const ok = await persistHomeworks(newHomeworks);
             if (ok) {
+                clearDraft('edit', hw.id);
                 Renderer.renderAll();
                 unbindAutoNum();
-                close();
+                close('save');
             }
         });
     }

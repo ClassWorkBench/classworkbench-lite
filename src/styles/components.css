@@ -416,6 +416,22 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     background: var(--subject-accent, var(--accent));
     flex-shrink: 0;
 }
+/* 未保存草稿笔图标（学科胶囊 / 作业卡片学科名左侧），极简实心笔。
+   用 CSS mask 遮罩法实现追色：background: currentColor 决定颜色，
+   mask-image 引用图标文件（仅取 alpha 形状），避免 <img> 外链 SVG 无法继承宿主颜色。 */
+.pill-draft-icon,
+.card-draft-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    display: inline-block;
+    background: currentColor;
+    -webkit-mask: url('../../icons/edit_pen.svg') no-repeat center / contain;
+    mask: url('../../icons/edit_pen.svg') no-repeat center / contain;
+}
+.card-draft-icon {
+    opacity: 0.8;
+}
 
 .card-content {
     font-size: var(--font-size-content);
@@ -548,7 +564,6 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     line-height: 1;
     padding: 0 3px;
     font-weight: 600;
-    margin-right: 4px;
     vertical-align: middle;
     flex-shrink: 0;
     pointer-events: none;

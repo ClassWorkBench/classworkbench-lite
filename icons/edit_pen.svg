@@ -1,0 +1,6 @@
+<svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <!-- 极简实心笔：45° 笔身 + 笔尖，currentColor 跟随学科色 -->
+    <g transform="rotate(-45 12 12)">
+        <path d="M2 12 L7 7.8 L20 7.8 A1.8 1.8 0 0 1 21.8 9.6 L21.8 14.4 A1.8 1.8 0 0 1 20 16.2 L7 16.2 Z" fill="currentColor"/>
+    </g>
+</svg>

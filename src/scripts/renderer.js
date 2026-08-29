@@ -64,6 +64,8 @@
             const viewDate = state.currentViewDate;
             // 首屏标记：首次渲染时卡片以"预置不可见态"先完成栅格化，再补入场动画
             const isFirstRender = (prevCardIds === null);
+            // 未保存修改草稿：对应卡片学科名左侧显示笔图标
+            const editDrafts = (state.settings.drafts && state.settings.drafts.edit) || {};
             // 浮窗模式中：正在浮窗/已关闭的卡片不在主窗口网格显示
             const fm = window.AppFloatingMode;
             const todays = state.homeworks.filter(hw => hw.date === viewDate && (!fm || !fm.shouldHideCard(hw.id)));
@@ -138,6 +140,7 @@
                         <div class="card-inner">
                             <div class="card-subject" style="color:${color}">
                                 <span class="subject-dot" style="background:${color}"></span>
+                                ${editDrafts[hw.id] ? '<span class="card-draft-icon" aria-hidden="true"></span>' : ''}
                                 ${escapeHtml(hw.subjectName)}
                             </div>
                             <div class="card-content">${window.AppUtils.renderContentBySetting(hw.content, state.settings.beautifyNumber !== false)}</div>
@@ -301,6 +304,26 @@
                 });
                 subjectPillsDiv.dataset.subjectsKey = state.subjectList.map(s => s.id).join(',');
             }
+
+            // 同步"未保存草稿"笔图标（学科胶囊文字左侧）
+            const draftMap = (state.settings.drafts && state.settings.drafts.add) || {};
+            subjectPillsDiv.querySelectorAll('.subject-pill').forEach(btn => {
+                const sid = btn.dataset.subjectId;
+                const hasDraft = !!draftMap[sid];
+                let icon = btn.querySelector('.pill-draft-icon');
+                const textSpan = btn.querySelector('.pill-text');
+                const name = textSpan ? textSpan.textContent : '';
+                if (hasDraft && !icon && textSpan) {
+                    icon = document.createElement('span');
+                    icon.className = 'pill-draft-icon';
+                    icon.setAttribute('aria-hidden', 'true');
+                    btn.insertBefore(icon, textSpan);
+                    btn.setAttribute('aria-label', `继续输入 ${name} 作业草稿`);
+                } else if (!hasDraft && icon) {
+                    icon.remove();
+                    btn.setAttribute('aria-label', `添加 ${name} 作业`);
+                }
+            });
 
             // 更新 hidden 状态（复用节点，触发 CSS 过渡）
             // 有 pending 候选时强制显示，不受 hasHW 影响

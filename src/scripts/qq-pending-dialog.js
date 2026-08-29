@@ -91,11 +91,9 @@
                 if (!badge) {
                     badge = document.createElement('span');
                     badge.className = 'pill-badge-inline';
-                    if (textSpan && textSpan.parentNode === btn) {
-                        btn.insertBefore(badge, textSpan);
-                    } else {
-                        btn.appendChild(badge);
-                    }
+                    // 徽标固定在文字右侧：左侧留给"未保存草稿"笔图标，
+                    // 避免 QQ 红点与笔图标挤在文字左侧
+                    btn.appendChild(badge);
                 }
                 badge.textContent = count > 9 ? '9+' : String(count);
                 badge.style.display = 'inline-flex';

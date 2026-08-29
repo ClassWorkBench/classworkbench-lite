@@ -99,6 +99,16 @@
             if (sol.sensitivity === undefined) sol.sensitivity = 2;
             if (sol.resolution === undefined) sol.resolution = '720';
             if (sol.prewarm === undefined) sol.prewarm = false;
+            // 未保存草稿兜底
+            if (!state.settings.drafts || typeof state.settings.drafts !== 'object') {
+                state.settings.drafts = { add: {}, edit: {} };
+            }
+            if (!state.settings.drafts.add || typeof state.settings.drafts.add !== 'object') {
+                state.settings.drafts.add = {};
+            }
+            if (!state.settings.drafts.edit || typeof state.settings.drafts.edit !== 'object') {
+                state.settings.drafts.edit = {};
+            }
             // ---- Schema 版本管理 ----
             if (!state.settings.schemaVersion) state.settings.schemaVersion = 1;
             // ---- 首次使用向导兜底 ----
