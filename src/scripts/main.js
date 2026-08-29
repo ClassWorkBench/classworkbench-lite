@@ -83,6 +83,19 @@
             }
         }
 
+        // 预热模糊/合成上下文：必须在卡片首屏动画之前。
+        // 卡片与菜单面板都带 backdrop-filter + will-change，首次栅格化会阻塞合成器，
+        // 把同帧启动的入场动画快进/吞掉（表现为启动时"所有卡片抖一下"、首开菜单无动画）。
+        // 这里先屏幕外绘制一次菜单面板，把一次性开销挪到卡片渲染之前。
+        if (window.AppMoreMenu && typeof window.AppMoreMenu.prewarmPaint === 'function') {
+            try {
+                window.AppMoreMenu.prewarmPaint();
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+            } catch (e) {
+                console.warn('[预热] 模糊合成预热失败:', e);
+            }
+        }
+
         Renderer.renderAll();
 
         const provider = window.AppState.settings.weatherProvider || 'openmeteo';

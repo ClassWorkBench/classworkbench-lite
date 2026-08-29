@@ -62,6 +62,8 @@
 
             const fragment = document.createDocumentFragment();
             const viewDate = state.currentViewDate;
+            // 首屏标记：首次渲染时卡片以"预置不可见态"先完成栅格化，再补入场动画
+            const isFirstRender = (prevCardIds === null);
             // 浮窗模式中：正在浮窗/已关闭的卡片不在主窗口网格显示
             const fm = window.AppFloatingMode;
             const todays = state.homeworks.filter(hw => hw.date === viewDate && (!fm || !fm.shouldHideCard(hw.id)));
@@ -110,8 +112,15 @@
                     const isFirstPaint = (prevCardIds === null);
                     const skipEnter = (prevCardIds === 'skip');
                     if (!skipEnter && (isFirstPaint || !prevCardIds.has(hw.id))) {
-                        card.classList.add('card-enter');
-                        card.style.animationDelay = isFirstPaint ? (idx * 0.04) + 's' : '0s';
+                        if (isFirstPaint) {
+                            // 首屏两步入场：先以不可见预置态完成首次栅格化——
+                            // 首次绘制 14 个带 backdrop-filter 的图层会阻塞合成器数百毫秒，
+                            // 若与动画同帧启动，入场动画会被吞掉（启动时"所有卡片抖一下"）
+                            card.classList.add('card-prep');
+                        } else {
+                            card.classList.add('card-enter');
+                            card.style.animationDelay = '0s';
+                        }
                     }
                     card.setAttribute('role', 'button');
                     card.setAttribute('tabindex', '0');
@@ -235,6 +244,16 @@
             cardsGrid.appendChild(fragment);
             // 记录本次渲染的卡片集合，供下次渲染判断"新增"
             prevCardIds = new Set(todays.map(h => h.id));
+            // 首屏：预置态栅格化完成后，下一帧统一补 card-enter，按 40ms 错峰弹出
+            if (isFirstRender) {
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    cardsGrid.querySelectorAll('.homework-card.card-prep').forEach((c, i) => {
+                        c.style.animationDelay = (i * 0.04) + 's';
+                        c.classList.remove('card-prep');
+                        c.classList.add('card-enter');
+                    });
+                }));
+            }
         },
 
         renderBottomPills() {

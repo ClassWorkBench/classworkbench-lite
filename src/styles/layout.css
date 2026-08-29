@@ -9,13 +9,25 @@
     inset: 0;
     z-index: 0;
     background: linear-gradient(150deg, #eef2f0 0%, #f6f1ea 48%, #e6edf4 100%);
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
     opacity: 1;
     transition: opacity 0.9s ease;
     will-change: opacity;
     pointer-events: none;
+}
+/* 云端壁纸由伪元素承载并淡入覆盖渐变底，避免 background-image 瞬间切换造成整屏色调突变 */
+.bg-layer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--bg-image, none);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity 0.9s ease;
+}
+.bg-layer.loaded::before {
+    opacity: 1;
 }
 .bg-layer.loaded {
     opacity: 1;

@@ -11,6 +11,7 @@
     const panel = document.getElementById('moreSheetPanel');
     const toggleBtn = document.getElementById('moreToggle');
     let isOpen = false;
+    let closeTimer = null;   // 出场动画结束后的瞬态清理定时器
 
     function positionPanel() {
         if (!panel || !toggleBtn) return;
@@ -34,10 +35,21 @@
         }
         isOpen = open;
         if (open) updateFloatBtnLabel();
-        sheet.classList.toggle('open', open);
         toggleBtn.classList.toggle('open', open);
         toggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) {
+            // 两步显示，修复「首次打开动画被跳过」：
+            // 元素首次从 visibility:hidden 转可见时若与动画同帧启动，
+            // Chromium 会快进/跳过首帧动画（表现为直接闪出、第二次起才正常）。
+            // 先只加 .shown 让面板可见但不带动画，强制布局提交一帧，
+            // 再在下一帧补 .open 启动入场动画。
+            clearTimeout(closeTimer);
+            sheet.classList.remove('closing');
+            sheet.classList.add('shown');
+            void sheet.offsetHeight;
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                if (isOpen) sheet.classList.add('open');
+            }));
             positionPanel();
             // 聚焦第一项，而不是第三个"复制排版图"——键盘用户打开菜单应落在逻辑起点。
             // 注意：.open 刚加上时，浏览器要到下一帧样式重算后才把 visibility 从 hidden 变为 visible，
@@ -56,8 +68,17 @@
                 };
                 tryFocus();
             }
-        } else if (!open && sheet.contains(document.activeElement)) {
-            toggleBtn.focus();
+        } else {
+            // 移除 .open，加瞬态 .closing 播放出场动画，结束后一并清理：
+            // 避免「关闭态常驻 moreSheetOut 动画 + fill-mode both」在下次打开时吞掉入场动画
+            sheet.classList.remove('open');
+            sheet.classList.add('closing');
+            clearTimeout(closeTimer);
+            closeTimer = setTimeout(() => {
+                sheet.classList.remove('closing');
+                sheet.classList.remove('shown');
+            }, 260);
+            if (sheet.contains(document.activeElement)) toggleBtn.focus();
         }
     }
 
@@ -167,6 +188,26 @@
         }
     }
 
+    /**
+     * 启动预热栅格化：首次打开动画被吞的根因是面板图层第一次真正绘制
+     * （合成/backdrop-filter/阴影）会阻塞合成器数百毫秒，动画按墙钟跑完后
+     * 中间帧一帧都没提交，用户看到的就是"直接闪出"。
+     * 这里在启动后以打开位置 + opacity≈0 把面板真实绘制一次，成本挪到启动阶段，
+     * 之后任何一次打开都走已就绪的图层，动画稳定播放。
+     */
+    function prewarmPaint() {
+        if (!sheet || !panel || isOpen) return;
+        sheet.classList.add('prewarm-paint');
+        // 注意：绝不能调用 positionPanel()！那会把面板定位到屏幕内（底部按钮上方），
+        // 带着 backdrop-filter 在卡片区域"闪"两帧，并首次创建 backdrop 根导致整页
+        // 重新合成（表现为卡片抖动 + 背景色调变化）。
+        // 保持 CSS 基础位（视口上方、屏幕外）即可完成图层/合成预热，对首开动画同样有效。
+        void panel.offsetHeight;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            sheet.classList.remove('prewarm-paint');
+        }));
+    }
+
     function init() {
         if (!sheet || !toggleBtn) return;
         toggleBtn.addEventListener('click', (e) => {
@@ -208,5 +249,5 @@
         });
     }
 
-    window.AppMoreMenu = { init, openMenu, closeMenu, bindButtons, positionPanel };
+    window.AppMoreMenu = { init, openMenu, closeMenu, bindButtons, positionPanel, prewarmPaint };
 })();

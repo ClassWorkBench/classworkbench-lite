@@ -224,6 +224,10 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     will-change: transform;
 }
 /* 入场动画只给"本次新增"的卡片，避免删/改一张卡时整屏卡片重播 cardPop */
+.homework-card.card-prep {
+    /* 首屏两步入场的预置态：不可见但真实参与合成，让首次栅格化在动画启动前完成 */
+    opacity: 0.001;
+}
 .homework-card.card-enter {
     /* 用 backwards 而不是 both：入场结束后不保留 transform，避免压住卡片 hover 抬起效果 */
     animation: cardPop 0.5s var(--transition-spring) backwards;
@@ -594,9 +598,22 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     visibility: hidden;
     transition: visibility 0s linear 0.25s;
 }
-.more-sheet.open {
+.more-sheet.open,
+.more-sheet.shown {
     visibility: visible;
     transition: visibility 0s;
+}
+/* 启动预热：以打开位置 + 肉眼不可见(opacity≈0)绘制面板一次，
+   把首次合成/模糊/阴影的昂贵栅格化挪到启动阶段——否则首次打开时
+   合成器栅格化会吞掉整个入场动画（表现为"直接闪出"，第二次起正常） */
+.more-sheet.prewarm-paint {
+    visibility: visible;
+    transition: none;
+}
+.more-sheet.prewarm-paint .more-sheet-panel {
+    opacity: 0.001;
+    transform: translate(-50%, -100%) scale(1);
+    animation: none !important;
 }
 .more-sheet-panel {
     position: fixed;
@@ -633,8 +650,10 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     from { opacity: 0; transform: translate(-50%, calc(-100% - 8px)) scale(0.97); }
     to   { opacity: 1; transform: translate(-50%, -100%) scale(1); }
 }
-/* 出场：移除 .open 后反向淡出（visibility 在 .more-sheet 上经 0.25s 延迟才隐藏，节奏与此对齐） */
-.more-sheet:not(.open) .more-sheet-panel {
+/* 出场：加 .closing 瞬态类后反向淡出（visibility 在 .more-sheet 上经 0.25s 延迟才隐藏，节奏与此对齐）。
+   注意不能写成 .more-sheet:not(.open) 常驻动画——fill-mode both 会把结束帧永久钉在元素上，
+   导致首次打开时入场动画与常驻出场动画交接而被快进/吞掉（表现为第一次"直接闪出"）。 */
+.more-sheet.closing .more-sheet-panel {
     animation: moreSheetOut 0.22s var(--transition-smooth) both;
 }
 @keyframes moreSheetOut {
@@ -648,7 +667,7 @@ body.reduce-anim .more-sheet.open .more-sheet-panel {
     animation-duration: 0.2s;
     animation-timing-function: ease-out;
 }
-body.reduce-anim .more-sheet:not(.open) .more-sheet-panel {
+body.reduce-anim .more-sheet.closing .more-sheet-panel {
     animation-duration: 0.2s;
     animation-timing-function: ease-out;
 }

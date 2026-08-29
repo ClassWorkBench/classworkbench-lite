@@ -20,7 +20,7 @@
         return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => {
-                bgLayer.style.backgroundImage = `url("${url}")`;
+                bgLayer.style.setProperty('--bg-image', `url("${url}")`);
                 bgLayer.classList.add('loaded');
                 resolve(true);
             };
