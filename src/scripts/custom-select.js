@@ -206,12 +206,16 @@
             if (idx == null) return;
             const opt = select.options[idx];
             if (!opt || opt.disabled) return;
-            if (select.value === opt.value) { close(); return; }
-            select.value = opt.value;
-            syncLabel();
+            if (select.value !== opt.value) {
+                select.value = opt.value;
+                syncLabel();
+                // 派发 change，既有各面板的 addEventListener('change') 照常触发
+                select.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+            }
             close();
-            // 派发 change，既有各面板的 addEventListener('change') 照常触发
-            select.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+            // 选中后把焦点交还给触发按钮：既有焦点环可见，下一次 Tab 自然向下走，
+            // 不再"丢失焦点 → 焦点环消失 → 连按多次 Tab 才回来"。
+            if (!select.disabled && trigger.focus) trigger.focus();
         }
 
         // 键盘：方向键移动/预览（不改 select.value），Enter 提交，Esc 关闭
@@ -255,6 +259,8 @@
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 close();
+                // Esc 关闭后焦点留在触发按钮，便于继续 Tab 向下/向上，避免焦点环消失
+                if (trigger.focus) trigger.focus();
             }
         }
 
