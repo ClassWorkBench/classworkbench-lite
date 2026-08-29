@@ -624,6 +624,20 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     pointer-events: auto;
     opacity: 1;
     transform: translate(-50%, -100%) scale(1);
+    /* 入场改用 animation 而非 transition：面板每次从 visibility:hidden 切可见时，
+       transition 缺失"上一帧计算值"，Chromium 会直接跳到终态 → "更多"首开及此后都无动画。
+       animation 不依赖历史帧，每次切 .open 都从 0% 播到 100%，保证始终丝滑渐入。 */
+    animation: moreSheetIn 0.28s var(--transition-smooth) both;
+}
+@keyframes moreSheetIn {
+    from { opacity: 0; transform: translate(-50%, calc(-100% - 8px)) scale(0.97); }
+    to   { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+}
+/* 减弱动画：入场/出场统一收紧为轻淡入，去掉位移/缩放 */
+body.reduce-anim .more-sheet.open .more-sheet-panel {
+    animation-duration: 0.2s;
+    animation-timing-function: ease-out;
+    transform: translate(-50%, -100%) scale(1) !important;
 }
 .more-item {
     display: flex;
