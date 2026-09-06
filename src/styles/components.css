@@ -3486,6 +3486,7 @@ body.reduce-anim .cp-pop {
 }
 .sm-input::placeholder { color: var(--text-muted); opacity: 0.75; }
 
+/* ============================================
  * 自定义下拉（AppSelect 增强原生 <select>）
  * 触发按钮是玻璃胶囊样式，弹出列表挂 body 顶层（fixed），
  * 完全跟随应用深浅色（原生系统下拉做不到）。
