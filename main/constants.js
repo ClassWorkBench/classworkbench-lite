@@ -15,9 +15,6 @@ const BG_TIMEOUT_MS = 30000;              // 背景图下载超时 30s
 
 const RUN_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';  // 开机自启注册表路径
 
-const SIDECAR_MAX_CONSECUTIVE_CRASHES = 8;   // Sidecar 连续崩溃阈值，超过停止自动重启
-const SIDECAR_STDOUT_MAX_BYTES = 1024 * 1024; // Sidecar stdout 单行缓冲上限 1MB，防无限缓冲
-
 const STORE_DEFAULTS = Object.freeze({
     settings: null,
     subjects: null,
@@ -40,8 +37,6 @@ module.exports = {
     BG_MAX_BYTES,
     BG_TIMEOUT_MS,
     RUN_KEY,
-    SIDECAR_MAX_CONSECUTIVE_CRASHES,
-    SIDECAR_STDOUT_MAX_BYTES,
     STORE_DEFAULTS,
     BROWSER_WINDOW_DEFAULTS
 };

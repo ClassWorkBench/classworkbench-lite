@@ -17,16 +17,6 @@ window.SettingsModules.data = {
                         </div>
                         <div class="panel-body">
                             <div class="setting-group">
-                                <div class="toggle-row">
-                                    <div class="toggle-row-text">
-                                        <span class="toggle-row-title">启用数据加密</span>
-                                        <span class="toggle-row-desc">作业、学科、设置等数据以 AES-256-GCM 加密存储（密钥由 Windows 凭据保护）；关闭后改为明文 JSON</span>
-                                    </div>
-                                    <label class="setting-toggle">
-                                        <input type="checkbox" id="dataEncryptionToggle" ${state.settings.dataEncryption !== false ? 'checked' : ''} aria-label="启用数据加密">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </div>
                                 <div class="data-action-row">
                                     <div class="data-action-text">
                                         <span class="data-action-title">查看归档作业</span>
@@ -55,28 +45,10 @@ window.SettingsModules.data = {
     },
 
     bind(ctx) {
-        const { state, toast, showModal, persistHomeworks, Renderer, qqCleanup, openArchiveView, saveSettings } = ctx;
-
-        // ---- 数据管理：数据加密开关（与主进程 store 实时同步，无需重启） ----
-        const encToggle = document.getElementById('dataEncryptionToggle');
-        if (encToggle) {
-            encToggle.addEventListener('change', async () => {
-                state.settings.dataEncryption = encToggle.checked;
-                try {
-                    await saveSettings();
-                    toast(`数据加密已${encToggle.checked ? '开启' : '关闭'}`);
-                } catch (e) {
-                    console.error('保存加密设置失败:', e);
-                }
-            });
-        }
+        const { state, toast, showModal, persistHomeworks, Renderer, openArchiveView, saveSettings } = ctx;
 
         // ---- 归档查看：直接切换到归档视图（showModal replace 会立即替换旧内容） ----
         document.getElementById('openArchiveBtn').addEventListener('click', () => {
-            if (qqCleanup.current) {
-                try { qqCleanup.current(); } catch (_) {}
-                qqCleanup.current = null;
-            }
             openArchiveView();
         });
 

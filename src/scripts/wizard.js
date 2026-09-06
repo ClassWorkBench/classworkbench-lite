@@ -58,14 +58,13 @@
     // ------------------------------------------------------------
     // 步骤定义
     // ------------------------------------------------------------
-    // full 模式：欢迎 → 协议 → 学科 → 班级偏好 → 加密 → 完成
+    // full 模式：欢迎 → 协议 → 学科 → 班级偏好 → 完成
     // agreement-only 模式：协议（老用户协议版本更新时）
     const STEPS_FULL = [
         { id: 'welcome',     label: '欢迎' },
         { id: 'agreement',   label: '协议' },
         { id: 'subjects',    label: '学科', skippable: true },
         { id: 'preferences', label: '偏好', skippable: true },  // 合并：晚修+天气+自启
-        { id: 'encryption',  label: '加密', skippable: true },
         { id: 'done',        label: '完成' },
     ];
     const STEPS_AGREEMENT_ONLY = [
@@ -193,27 +192,6 @@
                     </div>
                 `;
             }
-            case 'encryption': {
-                return `
-                    <h3 class="wizard-step-title">
-                        <img class="emoji" src="icons/locked_flat.svg" alt="数据加密">
-                        数据加密
-                    </h3>
-                    <p class="wizard-step-desc">作业、学科、设置等数据将<b>加密存储</b>在您的电脑上（AES-256-GCM），防止恶意软件扫描磁盘窃取数据；密钥由 Windows 凭据保护，仅您本机可解。</p>
-                    <div class="setting-group">
-                        <div class="toggle-row">
-                            <div class="toggle-row-text">
-                                <span class="toggle-row-title">启用数据加密</span>
-                                <span class="toggle-row-desc">推荐开启；关闭后数据以明文 JSON 存储</span>
-                            </div>
-                            <label class="setting-toggle">
-                                <input type="checkbox" id="wizardEncryptionToggle" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                `;
-            }
             case 'done': {
                 const subjects = state.subjectList;
                 const evening = state.settings.eveningSections;
@@ -226,9 +204,8 @@
                             <li>${emoji('📚')} 学科 ${subjects.length} 个：${escapeHtml(subjects.slice(0, 6).map(s => s.name).join('、'))}${subjects.length > 6 ? ' 等' : ''}</li>
                             <li>${emoji('⏰')} 晚修时段 ${evening.length} 段（${escapeHtml(evening.map(s => s.start + '-' + s.end).join('、'))}）</li>
                             <li>${emoji('🌤️')} 天气城市：${cities.length > 0 ? escapeHtml(cities.map(c => c.name).join('、')) : '未添加（可稍后在设置中添加）'}</li>
-                            <li><img class="emoji" src="icons/locked_flat.svg" alt="🔒"> 数据加密：${state.settings.dataEncryption !== false ? '已开启（AES-256-GCM）' : '未开启（明文 JSON）'}</li>
                         </ul>
-                        <p class="wizard-done-hint">更多功能（QQ 作业捕获、个性化、辅助功能、备份）随时可在 <b>底栏 ${emoji('⚙️')} 设置</b> 中调整。</p>
+                        <p class="wizard-done-hint">个性化、辅助功能、备份等随时可在 <b>底栏 ${emoji('⚙️')} 设置</b> 中调整。</p>
                     </div>
                 `;
             }
@@ -391,19 +368,6 @@
         body.querySelector('#wizardSecurityLink').addEventListener('click', () => openDoc('security', '数据的安全性'));
         body.querySelector('#wizardOpensourceLink').addEventListener('click', () => openDoc('opensource', '开源软件声明'));
         body.querySelector('#wizardContactLink').addEventListener('click', () => openDoc('contact', '联系我们'));
-            return;
-        }
-
-        if (stepId === 'encryption') {
-            const cb = body.querySelector('#wizardEncryptionToggle');
-            if (cb) {
-                cb.checked = state.settings.dataEncryption !== false;
-                cb.addEventListener('change', async () => {
-                    state.settings.dataEncryption = cb.checked;
-                    try { await saveSettings(); }
-                    catch (e) { console.error('保存加密设置失败:', e); }
-                });
-            }
             return;
         }
 

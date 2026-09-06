@@ -1,29 +1,26 @@
 // ============================================
-// main/data-store.js — 加密数据存储层（替代 electron-store）
-// 职责：内存读写（get/set）+ 加密落盘（flush）+ 旧明文迁移 + 损坏自愈。
+// main/data-store.js — 数据存储层（Lite：纯明文）
+// 职责：内存读写（get/set）+ 明文落盘（flush）+ 旧文件迁移 + 损坏自愈。
 // 接口与 electron-store 兼容（get/set），持久化改为显式 await flush()。
 // 文件：
-//   userData/homework-data.enc      — 加密主数据（AES-256-GCM）
-//   userData/homework-data.json     — 旧版明文，首次启动自动迁移后改名 .legacy.bak
+//   userData/homework-data.enc      — 主数据（明文 JSON，保留 .enc 命名兼容既有读取路径）
+//   userData/homework-data.json     — 更早的明文文件，存在时自动并入后删除
+// 注：Lite 版已移除数据加密。若遇到旧版加密文件（CBW1: 前缀），无法解密，
+//     会备份为 .corrupted 并回到默认值，绝不静默覆盖。
 // ============================================
 
 /**
- * 工厂模式创建加密数据存储。
+ * 工厂模式创建明文数据存储。
  * @param {object} opts
  * @param {object} opts.app      - Electron app（取 userData）
  * @param {object} opts.fs       - Node fs
  * @param {object} opts.path     - Node path
  * @param {object} opts.log      - electron-log
- * @param {object} opts.cipher   - data-cipher 模块实例（encryptText / decryptText）
  * @param {object} opts.defaults - 默认值（STORE_DEFAULTS）
- * @param {Function} opts.isEncryptionEnabled - () => boolean，当前是否启用加密（用户可在向导选择）
  */
-function createDataStore({ app, fs, path, log, cipher, defaults, isEncryptionEnabled }) {
+function createDataStore({ app, fs, path, log, defaults }) {
 
     const data = Object.assign({}, defaults || {});
-    const encGetter = typeof isEncryptionEnabled === 'function'
-        ? isEncryptionEnabled
-        : () => true;   // 缺省默认加密
     let loaded = false;
     let dirty = false;   // 内存是否有未落盘变更
     let saveChain = Promise.resolve(true);
@@ -53,24 +50,28 @@ function createDataStore({ app, fs, path, log, cipher, defaults, isEncryptionEna
         }
     }
 
-    /** 从指定文件加载并解析（自动兼容密文/明文） */
+    /** 从指定文件加载并解析（纯明文；旧加密 CBW1: 视为不可读 → 交损坏流程） */
     function loadFromFile(filePath) {
         try {
             const raw = fs.readFileSync(filePath, 'utf8');
-            const parsed = JSON.parse(raw.startsWith('CBW1:') ? cipher.decryptText(raw) : raw);
+            if (raw.startsWith('CBW1:')) {
+                log.error('[data-store] 检测到旧版加密数据文件，Lite 版不再支持解密:', filePath);
+                throw new Error('encrypted-legacy');
+            }
+            const parsed = JSON.parse(raw);
             if (parsed && typeof parsed === 'object') {
                 Object.assign(data, parsed);
                 return true;
             }
         } catch (e) {
-            log.error('[data-store] 旧明文数据损坏，备份后使用默认值:', filePath, e);
+            log.error('[data-store] 数据文件损坏，备份后使用默认值:', filePath, e.message || e);
         }
         backupCorrupted(filePath);
         return false;
     }
 
     /**
-     * 加载数据（同步）：优先读加密文件；不存在且存在旧明文 → 自动迁移。
+     * 加载数据（同步）：优先 homework-data.enc，其次旧明文 homework-data.json。
      * 应在应用启动早期调用一次。
      */
     function load() {
@@ -82,17 +83,16 @@ function createDataStore({ app, fs, path, log, cipher, defaults, isEncryptionEna
 
         if (fs.existsSync(enc)) {
             if (loadFromFile(enc)) return;
-            // 解密失败：尝试明文文件兜底
             if (fs.existsSync(plain) && loadFromFile(plain)) {
-                log.warn('[data-store] 加密文件损坏，已回退读取明文文件');
+                log.warn('[data-store] 主数据文件损坏，已回退读取旧明文文件');
                 return;
             }
-            log.error('[data-store] 加密数据解密失败，损坏文件已在 loadFromFile 中备份，使用默认值');
+            log.error('[data-store] 主数据不可读，损坏文件已备份，使用默认值');
             return;
         }
 
         if (fs.existsSync(plain) && loadFromFile(plain)) {
-            log.info('[data-store] 已加载明文数据文件');
+            log.info('[data-store] 已加载旧明文数据文件');
         }
     }
 
@@ -108,56 +108,22 @@ function createDataStore({ app, fs, path, log, cipher, defaults, isEncryptionEna
         dirty = true;
     }
 
-    /**
-     * 写后校验：读回磁盘文件，解密/解析后必须与内存序列化结果字节一致才算完好。
-     * 用于"切换加密格式后删除旧文件"前的安全网——校验通过才允许删除旧格式文件，
-     * 任何异常/不一致都返回 false，绝不冒险删除。
-     */
-    function verifyFile(filePath, expectedPlain) {
-        try {
-            const raw = fs.readFileSync(filePath, 'utf8');
-            const parsedRaw = raw.startsWith('CBW1:') ? cipher.decryptText(raw) : raw;
-            if (parsedRaw !== expectedPlain) {
-                log.error('[data-store] 写后校验不一致，保留旧格式文件不下发删除');
-                return false;
-            }
-            return true;
-        } catch (e) {
-            log.error('[data-store] 写后校验异常，保留旧格式文件:', e);
-            return false;
-        }
-    }
-
-    /** 加密落盘（串行队列，防并发覆盖） */
+    /** 明文落盘（串行队列，防并发覆盖）；顺带清理旧明文文件 */
     function save() {
         const next = saveChain.then(() => {
             try {
-                const enabled = encGetter();
                 const plain = JSON.stringify(data, null, 2);
-                const content = enabled ? cipher.encryptText(plain) : plain;
-                const target = enabled ? encFile() : plainFile();
-                const other = enabled ? plainFile() : encFile();
-                writeFileSync(target, content);
-                // 另一种格式的旧文件：写后校验通过才彻底删除（含历史遗留 .legacy.bak），
-                // 不再改名保底——切换开关后磁盘不留明文/旧格式残留。
-                // 校验失败则保留旧文件本身，报错但不丢数据（下次正常保存不会再动它）。
-                if (fs.existsSync(other)) {
-                    if (verifyFile(target, plain)) {
-                        try {
-                            fs.unlinkSync(other);
-                            const bak = other + '.legacy.bak';
-                            if (fs.existsSync(bak)) fs.unlinkSync(bak);
-                        } catch (e) {
-                            log.error('[data-store] 删除旧格式文件失败:', other, e);
-                        }
-                    } else {
-                        throw new Error('写后校验失败，拒绝删除旧格式文件');
+                writeFileSync(encFile(), plain);
+                const legacy = plainFile();
+                if (fs.existsSync(legacy)) {
+                    try { fs.unlinkSync(legacy); } catch (e) {
+                        log.error('[data-store] 删除旧明文文件失败:', legacy, e);
                     }
                 }
                 dirty = false;
                 return true;
             } catch (e) {
-                log.error('[data-store] 加密写入失败:', e);
+                log.error('[data-store] 写入失败:', e);
                 return false;
             }
         });

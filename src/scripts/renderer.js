@@ -279,15 +279,6 @@
             const viewDate = state.currentViewDate;
             const addedIds = new Set(state.homeworks.filter(h => h.date === viewDate).map(h => h.subjectId));
 
-            // 统计每个学科的 pending 候选数（用于强制显示胶囊）
-            const qq = state.settings.qq;
-            const pendingCounts = {};
-            if (qq && Array.isArray(qq.pendingCandidates)) {
-                qq.pendingCandidates.forEach(c => {
-                    if (c.subjectId) pendingCounts[c.subjectId] = (pendingCounts[c.subjectId] || 0) + 1;
-                });
-            }
-
             // 首次创建 / 学科列表变更：重建节点并缓存
             if (!subjectPillsDiv.childElementCount || subjectPillsDiv.dataset.subjectsKey !== state.subjectList.map(s => s.id).join(',')) {
                 subjectPillsDiv.innerHTML = '';
@@ -305,15 +296,8 @@
                     textSpan.textContent = subj.name;
                     btn.appendChild(textSpan);
                     btn.addEventListener('click', () => {
-                        if (window.QQPending) {
-                            window.QQPending.handlePillClick(subj, () => {
-                                const dlg = getDialogs();
-                                if (dlg) dlg.openAddDialog(subj);
-                            });
-                        } else {
-                            const dlg = getDialogs();
-                            if (dlg) dlg.openAddDialog(subj);
-                        }
+                        const dlg = getDialogs();
+                        if (dlg) dlg.openAddDialog(subj);
                     });
                     subjectPillsDiv.appendChild(btn);
                 });
@@ -347,15 +331,13 @@
             });
 
             // 更新 hidden 状态（复用节点，触发 CSS 过渡）
-            // 有 pending 候选时强制显示，不受 hasHW 影响
             subjectPillsDiv.querySelectorAll('.subject-pill').forEach(btn => {
                 const subjId = btn.dataset.subjectId;
                 const hasHW = addedIds.has(subjId);
-                const hasPending = (pendingCounts[subjId] || 0) > 0;
 
                 // 收起/展开全部交给 CSS 的 max-width 过渡，不再手动锁 width：
                 // 旧写法在展开时读到的是被压成 0 的宽度，再设 auto 无法过渡，会瞬间弹开
-                if (hasHW && !hasPending) {
+                if (hasHW) {
                     if (!btn.classList.contains('hidden-pill')) {
                         btn.classList.add('hidden-pill');
                     }
@@ -368,8 +350,6 @@
                 }
             });
 
-            // 更新 QQ 候选作业徽标
-            if (window.QQPending) window.QQPending.updatePendingBadge();
         },
 
         updateDateDisplay() {

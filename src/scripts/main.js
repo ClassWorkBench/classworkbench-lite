@@ -130,9 +130,6 @@
             window.AppFloatingMode.init();
         }
 
-        // QQ 监听初始化：订阅 IPC + 按需自动启动 sidecar
-        if (window.QQPending) window.QQPending.init();
-
         setTimeout(adjustContentPadding, 100);
     }
 

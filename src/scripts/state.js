@@ -28,7 +28,7 @@ let settings = {
     qweatherApiKey: '',              // 和风天气 API Key（旧认证，JWT 迁移后保留兼容）
     qweatherKid: '',                 // 和风 JWT 凭据 ID（控制台-项目管理查看）
     qweatherSub: '',                 // 和风 JWT 项目 ID（sub 签发主体）
-    qweatherPrivateKey: '',          // 和风 Ed25519 私钥状态：渲染层只持有掩码 '*configured*'（有值=已配置），明文仅存主进程加密存储
+    qweatherPrivateKey: '',          // 和风 Ed25519 私钥状态：渲染层只持有掩码 '*configured*'（有值=已配置），明文仅存主进程
     alertEnabledLevels: ['blue', 'yellow', 'orange', 'red'],  // 预警级别筛选，默认全选
     bgRefreshInterval: 30,
     bgSource: 'upx8',
@@ -44,30 +44,6 @@ let settings = {
     // 首次使用向导
     wizardCompleted: false,          // 是否已完成首次设置向导
     acceptedAgreementVersion: '',    // 已同意的用户协议/隐私声明版本（AGREEMENT_VERSION）
-    // QQ sidecar 配置
-    qq: {
-        enabled: false,                // 是否启用监听
-        // 老师列表：每项 { name: QQ昵称, subjectId: 学科id, subjectName: 学科名（冗余便于显示） }
-        teachers: [],
-        scanIntervalSeconds: 0.5,      // sidecar 轮询间隔
-        cooldownSeconds: 3,            // 同条消息冷却
-        // 作业关键词（用户可自定义，分值固定：强 +40 / 弱 +30）
-        keywords: {
-            strong: ['作业', '完成', '上交', '提交', '订正', '背诵', '默写'],
-            weak: ['做', '写', '复习', '预习', '练习', '答案']
-        },
-        // 待确认作业候选队列
-        pendingCandidates: []
-    },
-    // 拍照搜题配置
-    solve: {
-        cameraId: '',                  // 默认摄像头 deviceId（空 = 系统默认）
-        flip: false,                   // 画面镜像翻转（展台常需水平翻转）
-        autoScan: true,                // 扫描仪式自动抓拍（放稳后自动拍照）
-        sensitivity: 2,                // 自动抓拍灵敏度 1=低 2=中 3=高
-        resolution: '720',             // 摄像头启动分辨率 640=流畅 720=标准 1080=高清
-        prewarm: false                 // 应用启动后后台预加载搜题页面（默认关：省内存；开：换速度）
-    },
     // 未保存内容草稿（点击空白/Esc 退出时保留，学科胶囊/作业卡片显示笔图标）：
     //   add[学科id]  = 添加作业弹窗中未保存的输入内容
     //   edit[作业id] = 修改作业弹窗中未保存的修改内容

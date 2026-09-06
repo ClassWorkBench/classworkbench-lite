@@ -42,9 +42,6 @@ const selectSpots = [
     ['settings/personal.js', 'bgRefreshSelect'],
     ['settings/personal.js', 'bgRefreshModeSelect'],
     ['settings/personal.js', 'colsSelect'],
-    ['settings/qq.js', 'newTeacherSubject'],
-    ['settings/qq.js', 'teacher-subject-select'],
-    ['settings/solve.js', 'solveCameraSelect'],
 ];
 for (const [file, id] of selectSpots) {
     const src = existsSync(join(root, 'src/scripts', file)) ? read('src/scripts/' + file) : '';

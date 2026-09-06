@@ -76,7 +76,7 @@ window.WeatherQweather = {
                 '<textarea id="qweatherConfigPrivateKey" rows="3" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----&#10;（留空=不修改已配置的私钥）" style="width:100%;resize:vertical;font-family:monospace;"></textarea>' +
                 '<button class="btn btn-secondary" id="qweatherConfigGenKey" style="margin-top:8px;width:100%;">一键生成密钥对（私钥自动填入，公钥去和风登记）</button>' +
                 '</div>' +
-                '<small style="color:var(--text-muted);">和风现采用 JWT(Ed25519) 认证。请在 <a href="#" id="qweatherConsoleLink2" class="link-accent">console.qweather.com</a> 的"项目管理→添加凭据"中选择 JWT 身份认证，上传你生成的<strong>公钥</strong>；这里填写<strong>私钥</strong>、凭据 ID 与项目 ID。私钥仅在本机加密存储，不会明文回显或上传。</small>' +
+                '<small style="color:var(--text-muted);">和风现采用 JWT(Ed25519) 认证。请在 <a href="#" id="qweatherConsoleLink2" class="link-accent">console.qweather.com</a> 的"项目管理→添加凭据"中选择 JWT 身份认证，上传你生成的<strong>公钥</strong>；这里填写<strong>私钥</strong>、凭据 ID 与项目 ID。私钥仅保存在本机，不会明文回显或上传。</small>' +
                 '<div class="dialog-btn-row" style="margin-top:16px;">' +
                 '<button class="btn btn-secondary" id="qweatherConfigCancel">取消</button>' +
                 '<button class="btn btn-primary" id="qweatherConfigSave">保存</button>' +

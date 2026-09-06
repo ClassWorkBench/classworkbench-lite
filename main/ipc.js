@@ -15,16 +15,12 @@
  * @param {object} opts.archive     - archive 模块实例（loadDataInternal / getArchiveMonths / loadArchiveByMonth / validateData）
  * @param {object} opts.bg          - 背景图模块（pickCachedBackground / pickRandomCachedBackground / fetchAndCacheBackground）
  * @param {object} opts.autoLaunch  - 开机自启模块
- * @param {object} opts.sidecar     - Sidecar 模块
  * @param {object} opts.backup      - 备份/恢复模块（exportBackup / importBackup / createSnapshot / collectArchives / restoreArchives）
  * @param {object} opts.floating    - 浮窗模块（enter / exit / cardReady / getCardForWebContents / closeCard / closeAfterFade）
- * @param {object} opts.solve       - 拍照搜题模块（openDoubao / closeWindow / minimizeWindow）
- * @param {object} opts.cipher      - 数据加密模块（status 供设置面板展示）
  * @param {object} opts.docsSync   - 协议/文档在线同步模块（readDoc / readBundled / parseVersion / sync）
  * @param {object} opts.qweather   - 和风天气 JWT 客户端（get / generateToken）
  * @param {object} opts.updater    - 自动更新模块（check / download / install / getState）
  * @param {Function} opts.getMainWindow - 获取当前主窗口（page:copy / 关闭窗口用）
- * @param {Function} opts.getQqConfig - 从 store 取当前 QQ 设置（qq:toggle / qq:updateConfig 用）
  */
 const { nativeTheme } = require('electron');
 
@@ -32,17 +28,15 @@ const { nativeTheme } = require('electron');
 const APPEARANCE_TO_SOURCE = { system: 'system', light: 'light', dark: 'dark' };
 
 // 深色模式原生同步：设置 nativeTheme.themeSource 会统一影响——
-//   原生 UI（标题栏/菜单/DevTools）；
-//   所有 WebContents 的 prefers-color-scheme（含 AI 搜题内嵌的豆包/DeepSeek 第三方网页），
-//   它们据此自动明暗，无需侵入第三方页面。
+//   原生 UI（标题栏/菜单/DevTools）与所有 WebContents 的 prefers-color-scheme
 function syncNativeTheme(settings) {
     nativeTheme.themeSource = (settings && APPEARANCE_TO_SOURCE[settings.appearance]) || 'system';
 }
 
 function setupIpc({
     ipcMain, clipboard, shell, log, store,
-    archive, bg, autoLaunch, sidecar, backup, floating, solve, scan, cipher, docsSync, qweather, updater,
-    getMainWindow, getQqConfig, fs, path, app
+    archive, bg, autoLaunch, backup, floating, docsSync, qweather, updater,
+    getMainWindow, fs, path, app
 }) {
 
     // ===== 数据读写 =====
@@ -86,14 +80,11 @@ function setupIpc({
         store.set('homeworks', homeworks || []);
         if (subjects !== undefined) store.set('subjects', subjects);
         if (settings !== undefined) store.set('settings', mergePrivateKeyOnSave(settings));
-        // 外观改动随保存即时同步到原生主题（影响内嵌 AI 搜题网页的明暗）
+        // 外观改动随保存即时同步到原生主题
         if (settings !== undefined) syncNativeTheme(settings);
-        await store.flush();   // 加密落盘（串行队列）
+        await store.flush();   // 落盘（串行队列）
         return { success: true };
     });
-
-    // ===== 数据加密状态（设置面板展示） =====
-    ipcMain.handle('app:cipherStatus', () => cipher.status());
 
     // ===== 备份/恢复（备份文件读写；业务组装在渲染层 backup.js） =====
     ipcMain.handle('data:exportBackup', (_event, args) => {
@@ -130,13 +121,6 @@ function setupIpc({
 
     // float:setHoverMode / float:dockPreview / float:dockUnpreview 已废弃（轮询改 mouseenter，无 UI 调用），对应实现已从 floating 模块移除
 
-    // ===== 拍照搜题（半自动：内嵌 AI 搜题窗口） =====
-    ipcMain.handle('solve:open', (_event, payload) => solve.openDoubao(payload || {}));
-    ipcMain.handle('solve:warmup', () => { solve.warmup(); return { success: true }; });
-    ipcMain.handle('solve:release', () => { solve.releaseWindow(); return { success: true }; });
-    ipcMain.handle('solve:close', () => { solve.closeWindow(); return { success: true }; });
-    ipcMain.handle('solve:minimize', () => { solve.minimizeWindow(); return { success: true }; });
-
     // ===== 归档（只读） =====
     ipcMain.handle('archive:getMonths', () => archive.getArchiveMonths());
     ipcMain.handle('archive:loadMonth', (_event, monthKey) => archive.loadArchiveByMonth(monthKey));
@@ -153,26 +137,6 @@ function setupIpc({
         // 拉新失败时保留"最后一张"（index.current），不随机跳图，维持启动/刷新的一致性
         const url = bg.pickCachedBackground();
         return url ? { ok: true, url, source: 'cache' } : { ok: false, source: 'none' };
-    });
-
-    // ===== QQ Sidecar =====
-    ipcMain.handle('qq:toggle', (_event, enabled) => {
-        if (enabled) {
-            const qqConfig = getQqConfig();
-            sidecar.startSidecar(qqConfig);
-        } else {
-            sidecar.stopSidecar();
-        }
-        return { success: true };
-    });
-
-    ipcMain.handle('qq:getStatus', () => sidecar.getStatus());
-
-    ipcMain.handle('qq:updateConfig', () => {
-        if (sidecar.getStatus().running) {
-            sidecar.restartSidecar();
-        }
-        return { success: true };
     });
 
     // ===== 开机自启 =====
@@ -333,31 +297,6 @@ function setupIpc({
         }
     });
 
-    // ===== 相机多页扫描：跨应用插入浮窗 + 保存 =====
-    // 打开/刷新浮窗（imgs 为 dataURL 数组）
-    ipcMain.handle('scan:open', (_event, imgs) => scan.open(imgs));
-
-    // 关闭/销毁浮窗
-    ipcMain.handle('scan:close', () => scan.close());
-
-    // 切换浮窗形态（collapsed | expanded），并联动窗口 resize
-    ipcMain.handle('scan:shape', (_event, s) => scan.setShape(s));
-
-    // 插入第 idx 张图到当前前台窗口（写剪贴板 + 模拟 Ctrl+V）
-    ipcMain.handle('scan:insert', async (_event, idx) => scan.insertIndex(idx));
-
-    // 浮窗侧保存：存主进程持有的待插入清单
-    ipcMain.handle('scan:save', () => scan.saveToDesktop());
-
-    // 面板侧直接保存（传入 dataURL 数组）
-    ipcMain.handle('scan:saveNow', (_event, imgs) => scan.saveToDesktop(imgs));
-
-    // 浮窗 init：拉取待插入图片列表（仅回传图片数据，供渲染层渲染清单）
-    ipcMain.handle('scan:list', () => ({
-        ok: true,
-        images: scan.getImages(),
-        reduceAnimation: !!((store.get('settings') || {}).reduceAnimation)
-    }));
 }
 
 module.exports = { setupIpc };

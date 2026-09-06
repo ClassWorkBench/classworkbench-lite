@@ -15,17 +15,11 @@
  * @param {object} opts.log     - electron-log
  * @param {Store}  opts.store   - electron-store（快照兜底）
  * @param {object} opts.archive - 归档模块实例（月份列表/安全读取/原子写入）
- * @param {object} opts.cipher  - data-cipher 模块实例（快照加密落盘；导出/导入备份保持明文）
- * @param {Function} opts.isEncryptionEnabled - () => boolean，快照跟随用户加密开关
  */
-function createBackupModule({ app, dialog, fs, path, log, store, archive, cipher, isEncryptionEnabled }) {
+function createBackupModule({ app, dialog, fs, path, log, store, archive }) {
 
     const ARCHIVE_MONTH_RE = /^\d{4}-\d{2}$/;
     const SNAPSHOT_MAX_KEEP = 5;   // 恢复快照只保留最近 N 份，防止磁盘无限增长
-    const encGetter = typeof isEncryptionEnabled === 'function'
-        ? isEncryptionEnabled
-        : () => true;
-
     function getSnapshotDir() {
         return path.join(app.getPath('userData'), 'restore-snapshots');
     }
@@ -56,16 +50,6 @@ function createBackupModule({ app, dialog, fs, path, log, store, archive, cipher
     function safeWriteJson(filePath, payload) {
         const tmpPath = filePath + '.tmp-' + Date.now();
         fs.writeFileSync(tmpPath, JSON.stringify(payload, null, 2), 'utf8');
-        fs.renameSync(tmpPath, filePath);
-    }
-
-    /** 原子写加密 JSON（本机快照用；备份导出保持明文，方便跨机器/网盘） */
-    function writeEncryptedJson(filePath, payload) {
-        const content = encGetter()
-            ? cipher.encryptText(JSON.stringify(payload, null, 2))
-            : JSON.stringify(payload, null, 2);
-        const tmpPath = filePath + '.tmp-' + Date.now();
-        fs.writeFileSync(tmpPath, content, 'utf8');
         fs.renameSync(tmpPath, filePath);
     }
 
@@ -135,7 +119,7 @@ function createBackupModule({ app, dialog, fs, path, log, store, archive, cipher
                     homeworks: (data && data.homeworks) || store.get('homeworks')
                 }
             };
-            writeEncryptedJson(filePath, snapshot);
+            safeWriteJson(filePath, snapshot);
             cleanupSnapshots();   // 每次新建快照后收紧保留数量
             return { success: true, filePath };
         } catch (e) {

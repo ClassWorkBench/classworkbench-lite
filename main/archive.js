@@ -15,14 +15,8 @@
  * @param {object} opts.fs    - Node fs 模块
  * @param {object} opts.path  - Node path 模块
  * @param {object} opts.log   - electron-log 实例
- * @param {object} opts.cipher - data-cipher 模块实例（归档文件加密落盘）
- * @param {Function} opts.isEncryptionEnabled - () => boolean，用户可选择是否加密
  */
-function createArchiveModule({ archivesDir, store, atomicWriteRef, fs, path, log, cipher, isEncryptionEnabled }) {
-
-    const encGetter = typeof isEncryptionEnabled === 'function'
-        ? isEncryptionEnabled
-        : () => true;
+function createArchiveModule({ archivesDir, store, atomicWriteRef, fs, path, log }) {
 
     function getCutoffDate() {
         const d = new Date();
@@ -42,9 +36,9 @@ function createArchiveModule({ archivesDir, store, atomicWriteRef, fs, path, log
         return new Date(year, (month || 1) - 1, day || 1);
     }
 
-    /** 原子写入归档文件（加密内容）：优先 atomically，失败降级为"临时文件 + rename" */
+    /** 原子写入归档文件（明文）：优先 atomically，失败降级为"临时文件 + rename" */
     async function atomicWriteFileSync(filePath, data) {
-        const content = encGetter() ? cipher.encryptText(data) : data;
+        const content = data;
         if (atomicWriteRef.value) {
             atomicWriteRef.value(filePath, content, { encoding: 'utf8' });
         } else {
@@ -54,13 +48,14 @@ function createArchiveModule({ archivesDir, store, atomicWriteRef, fs, path, log
         }
     }
 
-    /** 安全读取归档文件（解密）：密文/JSON 损坏时备份为 .corrupted.<ts>.bak，而非丢弃 */
+    /** 安全读取归档文件（明文）：JSON 损坏时备份为 .corrupted.<ts>.bak，而非丢弃 */
     async function safeReadArchive(filePath) {
         if (!fs.existsSync(filePath)) return [];
         try {
             const raw = fs.readFileSync(filePath, 'utf8');
-            // 兼容两种格式：密文（CBW1:）与明文（历史/关闭加密时）
-            const data = JSON.parse(raw.startsWith('CBW1:') ? cipher.decryptText(raw) : raw);
+            // 旧版加密文件（CBW1:）无法解密，按损坏处理
+            if (raw.startsWith('CBW1:')) throw new Error('encrypted-legacy');
+            const data = JSON.parse(raw);
             return Array.isArray(data) ? data : [];
         } catch (e) {
             log.error('归档文件损坏，备份后重置:', filePath, e);

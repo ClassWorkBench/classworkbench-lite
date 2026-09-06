@@ -141,7 +141,7 @@ function createUpdaterModule({ app, log, getMainWindow, net }) {
     /** 用户确认后退出应用并安装 */
     function install() {
         if (state.status !== 'downloaded') return { success: false, error: '更新尚未就绪' };
-        // before-quit 会停掉 QQ 监听 sidecar，随后启动 NSIS 升级安装
+        // before-quit 后启动 NSIS 升级安装
         autoUpdater.quitAndInstall(false, true);
         return { success: true };
     }

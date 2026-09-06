@@ -5,31 +5,29 @@
 //   main/archive.js         — 按月归档（原子写入/损坏备份/幂等去重）
 //   main/background-cache.js— 背景图本地缓存（魔数校验/索引/下载驱逐）
 //   main/auto-launch.js     — 开机自启 + 开发版自启清理
-//   main/sidecar.js         — QQ Sidecar 进程管理（崩溃退避/竞态修复）
 //   main/window.js          — BrowserWindow + Tray + 钩子
 //   main/floating.js        — 浮窗模式（画中画：每卡一窗，置顶可拖）
 //   main/ipc.js             — 32 个 IPC 胶水层 handler（无业务）
 // ============================================
 
-const { app, BrowserWindow, WebContentsView, ipcMain, Tray, Menu, net, clipboard, shell, dialog, screen, session, safeStorage, nativeImage, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, net, clipboard, shell, dialog, screen, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
-const { spawn, execSync, execFileSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const log = require('electron-log');
+
+// Lite 版使用独立数据目录，与完整版（classworkbench）数据互不干扰
+app.setPath('userData', path.join(app.getPath('appData'), 'classworkbench-lite'));
 
 // ---- 模块工厂 ----
 const { STORE_DEFAULTS } = require('./main/constants');
 const { createArchiveModule } = require('./main/archive');
 const { createBgCacheModule } = require('./main/background-cache');
 const { createAutoLaunchModule } = require('./main/auto-launch');
-const { createSidecarModule } = require('./main/sidecar');
 const { createBackupModule } = require('./main/backup');
 const { createFloatingModule } = require('./main/floating');
-const { createSolveModule } = require('./main/solve');
-const { createScanModule } = require('./main/scan');
-const { createCipherModule } = require('./main/data-cipher');
 const { createDataStore } = require('./main/data-store');
 const { createWindowModule } = require('./main/window');
 const { createDocsSync } = require('./main/docs-sync');
@@ -45,7 +43,6 @@ app.commandLine.appendSwitch('enable-features', 'BackForwardCache:memory_limit_i
 app.commandLine.appendSwitch('memory-pressure-offloading');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
-app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 // ---- 全局异常捕获 ----
 process.on('uncaughtException', (err) => log.error('[uncaughtException]', err));
@@ -70,12 +67,8 @@ if (!gotTheLock) {
     let archive = null;
     let bg = null;
     let autoLaunch = null;
-    let sidecar = null;
     let backup = null;
     let floating = null;
-    let solve = null;
-    let scan = null;
-    let cipher = null;
     let store = null;
     let windowMod = null;
     let docsSync = null;
@@ -85,20 +78,10 @@ if (!gotTheLock) {
     // ---- 主窗口变化时把引用同步给 mainWindowRef（供 IPC/second-instance 调用） ----
     function onMainWindowChange(w) { mainWindowRef.value = w; }
 
-    // ---- Sidecar 事件 → 转发给渲染层（sidecar 模块本身不依赖窗口） ----
+    // ---- 事件 → 转发给渲染层 ----
     function emitToRenderer(event, data) {
         const w = mainWindowRef.value;
         if (w && !w.isDestroyed()) w.webContents.send(event, data);
-    }
-
-    // ---- 从 store 取 QQ settings（供 IPC 用） ----
-    function getQqConfig() {
-        let store = null;
-        // 这个 getter 在 whenReady 之后才会被 qq:toggle/qq:updateConfig 调用，
-        // 但为了稳妥，仍通过闭包拿 app 里的 storeRef。下面初始化时再赋值。
-        store = getQqConfig._store;
-        const settings = store ? (store.get('settings') || {}) : {};
-        return settings.qq || {};
     }
 
     // ============================================
@@ -113,41 +96,13 @@ if (!gotTheLock) {
     });
 
     app.whenReady().then(async () => {
-        // ---- 数据加密：AES-256-GCM，密钥由 Windows 凭据保护（DPAPI） ----
-        // 系统加密不可用（极端情况）时降级明文并如实暴露状态，绝不让应用无法启动。
-        try {
-            cipher = createCipherModule({ app, fs, path, log, safeStorage });
-            cipher.status();   // 提前校验密钥可用性
-        } catch (e) {
-            log.error('[cipher] 系统加密不可用，数据将以明文存储（状态会如实显示）:', e);
-            cipher = {
-                encryptText: (t) => String(t),
-                decryptText: (t) => String(t),
-                status: () => ({ enabled: false, algorithm: '无（系统加密不可用，降级明文）', keyProtection: '不可用', keyFile: '' })
-            };
-        }
-
-        // 加密开关：settings.dataEncryption !== false 即启用（向导可选择，默认开启）
-        const isEncryptionEnabled = () => {
-            const s = store ? store.get('settings') : null;
-            return !s || s.dataEncryption !== false;
-        };
-
-        // ---- 加密数据存储（替代 electron-store）：内存读写 + 按开关加密/明文落盘 ----
-        store = createDataStore({ app, fs, path, log, cipher, defaults: STORE_DEFAULTS, isEncryptionEnabled });
+        // ---- 明文数据存储（Lite 版已移除数据加密）----
+        store = createDataStore({ app, fs, path, log, defaults: STORE_DEFAULTS });
         store.load();   // 旧明文自动迁移 + 损坏自愈
-        getQqConfig._store = store;
 
-        // 深色模式：启动即按已存外观设置原生主题（早于任何窗口/搜题预热），
-        // 使原生 UI 与所有内嵌网页（含豆包/DeepSeek）的 prefers-color-scheme 一致。
+        // 深色模式：启动即按已存外观设置原生主题
         const _initAppearance = (store.get('settings') || {}).appearance;
         nativeTheme.themeSource = { system: 'system', light: 'light', dark: 'dark' }[_initAppearance] || 'system';
-
-        // ---- 摄像头/媒体权限（拍照搜题）：仅放行 media，其余网页权限一律拒绝 ----
-        session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-            callback(permission === 'media');
-        });
-        session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'media');
 
         try {
             const atomically = await import('atomically');
@@ -159,7 +114,7 @@ if (!gotTheLock) {
         if (!fs.existsSync(archivesDir)) fs.mkdirSync(archivesDir, { recursive: true });
 
         // ---- 各模块工厂实例化，显式依赖注入 ----
-        archive = createArchiveModule({ archivesDir, store, atomicWriteRef, fs, path, log, cipher, isEncryptionEnabled });
+        archive = createArchiveModule({ archivesDir, store, atomicWriteRef, fs, path, log });
         // 背景图缓存索引为明文内部文件（无隐私价值），使用独立的明文原子写，
         // 不经过 archive 的加密写入（避免索引被加密后自身无法读取）。
         const plainAtomicWrite = (filePath, data) => {
@@ -178,12 +133,7 @@ if (!gotTheLock) {
         });
         autoLaunch = createAutoLaunchModule({ app, fs, path, execFileSync, log });
 
-        backup = createBackupModule({ app, dialog, fs, path, log, store, archive, cipher, isEncryptionEnabled });
-
-        sidecar = createSidecarModule({
-            app, fs, path, log, spawn, execSync,
-            callbacks: { emit: emitToRenderer }
-        });
+        backup = createBackupModule({ app, dialog, fs, path, log, store, archive });
 
         windowMod = createWindowModule({
             BrowserWindow, Tray, Menu, path, log,
@@ -204,21 +154,6 @@ if (!gotTheLock) {
             getSettings: () => store.get('settings') || {}
         });
 
-        solve = createSolveModule({
-            BrowserWindow, WebContentsView, screen, session, clipboard, nativeImage,
-            app, path, log,
-            assetsDir: __dirname,
-            getMainWindow: () => mainWindowRef.value
-        });
-
-        scan = createScanModule({
-            BrowserWindow, screen, clipboard, nativeImage,
-            app, path, fs, log, spawn,
-            assetsDir: __dirname,
-            getMainWindow: () => mainWindowRef.value,
-            getSettings: () => store.get('settings') || {}
-        });
-
         // 协议/文档在线同步（三级兜底 + SHA-256 比对 + 本地缓存），不阻塞启动
         docsSync = createDocsSync({ app, fs, path, crypto, net, log });
 
@@ -235,10 +170,9 @@ if (!gotTheLock) {
         // ---- IPC 胶水层 ----
         setupIpc({
             ipcMain, clipboard, shell, log, store,
-            archive, bg, autoLaunch, sidecar, backup, floating, solve, scan, cipher, docsSync,
+            archive, bg, autoLaunch, backup, floating, docsSync,
             qweather, updater,
             getMainWindow: () => mainWindowRef.value,
-            getQqConfig,
             fs, path, app
         });
 
@@ -253,13 +187,6 @@ if (!gotTheLock) {
 
         windowMod.createWindow();
         windowMod.createTray();
-
-        // 启动 3 秒后后台预热 AI 搜题页面（豆包/DeepSeek 常驻加载，默认开启可在设置关闭）
-        setTimeout(() => {
-            const s = store.get('settings') || {};
-            const sol = s.solve || {};
-            if (sol.prewarm === true && solve) solve.warmup();
-        }, 3000);
 
         // 后台异步同步协议/文档（不阻塞界面）；变了则通知渲染层展示最新/重弹协议
         docsSync.sync().then((summary) => {
@@ -278,12 +205,10 @@ if (!gotTheLock) {
     });
 
     app.on('window-all-closed', () => {
-        if (sidecar) sidecar.stopSidecar();
         if (process.platform !== 'darwin') app.quit();
     });
 
     app.on('before-quit', () => {
         isQuittingRef.value = true;
-        if (sidecar) sidecar.stopSidecar();
     });
 }

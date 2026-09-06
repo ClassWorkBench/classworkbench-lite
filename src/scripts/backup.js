@@ -36,12 +36,8 @@
             id: 'accessibility', name: '辅助功能',
             keys: ['contentFontSize', 'reduceAnimation', 'blurBars', 'blurCard', 'blurModal']
         },
-        { id: 'qq', name: 'QQ监听', keys: ['qq'] },
         { id: 'subjects', name: '学科管理', special: 'subjects' }
     ];
-
-    const DEFAULT_STRONG = ['作业', '完成', '上交', '提交', '订正', '背诵', '默写'];
-    const DEFAULT_WEAK = ['做', '写', '复习', '预习', '练习', '答案'];
 
     function fileStamp() {
         const d = new Date();
@@ -521,16 +517,6 @@
         for (const [key, value] of Object.entries(subset)) {
             state.settings[key] = deepClone(value);
         }
-        // qq 结构兜底，避免恢复的旧数据缺字段导致渲染崩溃
-        const qq = state.settings.qq;
-        if (!qq || typeof qq !== 'object') state.settings.qq = {};
-        const q = state.settings.qq;
-        if (q.enabled === undefined) q.enabled = false;
-        if (!Array.isArray(q.teachers)) q.teachers = [];
-        if (!Array.isArray(q.pendingCandidates)) q.pendingCandidates = [];
-        if (!q.keywords || typeof q.keywords !== 'object') q.keywords = {};
-        if (!Array.isArray(q.keywords.strong)) q.keywords.strong = DEFAULT_STRONG;
-        if (!Array.isArray(q.keywords.weak)) q.keywords.weak = DEFAULT_WEAK;
     }
 
     function applySubjects(subjects, mode) {
@@ -567,18 +553,6 @@
         try { restartWeatherRefresh(); } catch (_) {}
         try { restartBgRefresh(); } catch (_) {}
         try { Renderer.renderAll(); } catch (_) {}
-        syncQqAfterRestore();
-    }
-
-    /** 恢复后让 QQ sidecar 状态与恢复的设置保持一致 */
-    async function syncQqAfterRestore() {
-        try {
-            const status = await api.qq.getStatus();
-            const enabled = !!state.settings.qq?.enabled;
-            if (enabled && !status.running) await api.qq.toggle(true);
-            else if (!enabled && status.running) await api.qq.toggle(false);
-            else if (enabled && status.running) await api.qq.updateConfig();
-        } catch (_) { /* 侧车状态同步失败不阻断 */ }
     }
 
     window.AppBackup = { openBackupRestore };

@@ -61,44 +61,6 @@
             if (state.settings.blurCard === undefined) state.settings.blurCard = true;
             if (state.settings.blurModal === undefined) state.settings.blurModal = true;
             if (state.settings.reduceAnimation === undefined) state.settings.reduceAnimation = false;
-            // qq 配置兜底（旧 settings 无此字段时填充默认）
-            if (!state.settings.qq) state.settings.qq = {};
-            const q = state.settings.qq;
-            if (q.enabled === undefined) q.enabled = false;
-            if (!Array.isArray(q.teachers)) q.teachers = [];
-            // 兼容旧版字符串数组 → 升级为 { name, subjectId: null }
-            q.teachers = q.teachers.map(t => {
-                if (typeof t === 'string') return { name: t, subjectId: null, subjectName: null };
-                if (!t || typeof t !== 'object') return null;
-                if (typeof t.name !== 'string') return null;
-                return { name: t.name, subjectId: t.subjectId || null, subjectName: t.subjectName || null };
-            }).filter(Boolean);
-            // 去重（按 name）
-            const seen = new Set();
-            q.teachers = q.teachers.filter(t => {
-                if (seen.has(t.name)) return false;
-                seen.add(t.name); return true;
-            });
-            // 清理旧字段
-            if ('knownSenders' in q) delete q.knownSenders;
-            if (q.scanIntervalSeconds === undefined) q.scanIntervalSeconds = 0.5;
-            if (q.cooldownSeconds === undefined) q.cooldownSeconds = 3;
-            if (!Array.isArray(q.pendingCandidates)) q.pendingCandidates = [];
-            // 关键词兜底：旧 settings 无此字段时填充默认词表
-            if (!q.keywords || typeof q.keywords !== 'object') q.keywords = {};
-            const DEFAULT_STRONG = ['作业', '完成', '上交', '提交', '订正', '背诵', '默写'];
-            const DEFAULT_WEAK = ['做', '写', '复习', '预习', '练习', '答案'];
-            if (!Array.isArray(q.keywords.strong)) q.keywords.strong = DEFAULT_STRONG;
-            if (!Array.isArray(q.keywords.weak)) q.keywords.weak = DEFAULT_WEAK;
-            // 拍照搜题配置兜底（旧 settings 无该字段时填充默认值）
-            if (!state.settings.solve) state.settings.solve = {};
-            const sol = state.settings.solve;
-            if (sol.cameraId === undefined) sol.cameraId = '';
-            if (sol.flip === undefined) sol.flip = false;
-            if (sol.autoScan === undefined) sol.autoScan = true;
-            if (sol.sensitivity === undefined) sol.sensitivity = 2;
-            if (sol.resolution === undefined) sol.resolution = '720';
-            if (sol.prewarm === undefined) sol.prewarm = false;
             // 未保存草稿兜底
             if (!state.settings.drafts || typeof state.settings.drafts !== 'object') {
                 state.settings.drafts = { add: {}, edit: {} };

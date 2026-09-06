@@ -24,9 +24,6 @@
         { value: 60, label: '每小时' },
     ];
 
-    // QQ IPC 监听清理函数的可变引用（通过对象传递给子模块）
-    const qqCleanup = { current: null };
-
     // 为所有 role="radiogroup" 分段控件绑定左右方向键切换（radio 语义要求方向键移动并选中）
     function bindRadiogroupKeys(root) {
         root.querySelectorAll('[role="radiogroup"]').forEach(group => {
@@ -47,7 +44,6 @@
 
     function openSettings() {
         const settings = state.settings;
-        const qq = settings.qq;
         const eveningStr = settings.eveningSections.map(s => s.start + '-' + s.end).join(', ');
 
         const refreshHtml = REFRESH_OPTIONS.map(o =>
@@ -71,14 +67,13 @@
 
         // 组装上下文，传递给各面板模块
         const ctx = {
-            state, settings, qq, api, Renderer, ArchiveView,
+            state, settings, api, Renderer, ArchiveView,
             saveSettings, saveSubjects, persistHomeworks,
             toast, escapeHtml, showModal, applyStyling,
             loadWeather, restartWeatherRefresh, searchCities, refilterAlerts,
             REFRESH_OPTIONS,
             setupBgRefresh, refreshBackground, restartBgRefresh,
             eveningStr, refreshHtml, bgSourceHtml, colsHtml,
-            qqCleanup,
             openArchiveView: () => openArchiveView(),
         };
 
@@ -107,14 +102,6 @@
                         <span class="nav-icon">${emoji('📚')}</span>
                         <span class="nav-label">学科管理</span>
                     </button>
-                    <button type="button" class="settings-nav-item" data-panel="qq">
-                        <span class="nav-icon">${emoji('📨')}</span>
-                        <span class="nav-label">QQ监听</span>
-                    </button>
-                    <button type="button" class="settings-nav-item" data-panel="solve">
-                        <span class="nav-icon"><img class="emoji" src="emoji/camera_color.svg" alt="📷"></span>
-                        <span class="nav-label">拍照搜题</span>
-                    </button>
                     <button type="button" class="settings-nav-item" data-panel="data">
                         <span class="nav-icon">${emoji('🗃️')}</span>
                         <span class="nav-label">数据管理</span>
@@ -133,8 +120,6 @@
                     ${M.personal.render(ctx)}
                     ${M.accessibility.render(ctx)}
                     ${M.subjects.render(ctx)}
-                    ${M.qq.render(ctx)}
-                    ${M.solve.render(ctx)}
                     ${M.data.render(ctx)}
                     ${M.about.render(ctx)}
                 </div>
@@ -143,13 +128,8 @@
 
         const disposers = [];
         const { close, dialog } = showModal(html, () => {
-            // 关闭设置面板：先卸掉各面板返回的清理函数（如 solve 的实时摄像头预览），
-            // 再卸掉 QQ IPC 监听，避免状态回调操作已移除的 DOM。
+            // 关闭设置面板：先卸掉各面板返回的清理函数，避免状态回调操作已移除的 DOM。
             for (const d of disposers) { try { d(); } catch (_) {} }
-            if (qqCleanup.current) {
-                try { qqCleanup.current(); } catch (_) {}
-                qqCleanup.current = null;
-            }
         });
         if (dialog) dialog.classList.add('wide', 'settings-dialog');
 
@@ -164,9 +144,6 @@
         M.personal.bind(ctx);
         M.accessibility.bind(ctx);
         M.subjects.bind(ctx);
-        M.qq.bind(ctx);
-        const solveCleanup = M.solve.bind(ctx);
-        if (solveCleanup) disposers.push(solveCleanup);
         M.data.bind(ctx);
         M.about.bind(ctx);
 
