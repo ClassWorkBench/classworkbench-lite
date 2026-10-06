@@ -2213,76 +2213,6 @@ body.reduce-anim .segmented .seg-btn {
 .link-accent { color: var(--accent); }
 .text-danger { color: #d45a5a; }
 .btn-mt { margin-top: 8px; }
-/* 老师列表项 */
-.teacher-list-empty {
-    opacity: 0.6;
-    padding: 4px 0;
-    font-size: 0.8rem;
-    text-align: center;
-}
-/* 老师列表项紧凑化，与学科管理项保持同高 */
-#panel-qq .subject-manage-item {
-    padding: 4px 6px;
-}
-#panel-qq .subject-manage-item .teacher-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-#panel-qq .subject-manage-item .teacher-subject-select {
-    flex-shrink: 0;
-}
-.subject-manage-item .teacher-name {
-    flex: 1;
-}
-.subject-manage-item .teacher-subject-select {
-    min-width: 90px;
-    margin-right: 8px;
-}
-.subject-manage-item .btn-danger-sm {
-    padding: 4px 10px;
-    font-size: 0.75rem;
-}
-/* QQ 描述文本 */
-.qq-desc-text {
-    display: block;
-    margin-bottom: 8px;
-    opacity: 0.7;
-    line-height: 1.7;
-}
-/* 老师联系人容器（仿学科管理合体风格） */
-.subject-manage-box {
-    background: rgba(0, 0, 0, 0.03);
-    border-radius: 10px;
-    padding: 8px;
-    margin-top: 4px;
-}
-.qq-add-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 8px;
-}
-.qq-add-row .input-flex {
-    min-width: 0; /* 允许昵称输入框在空间不足时压缩 */
-}
-.qq-add-row select {
-    flex-shrink: 0;
-    max-width: 120px;
-}
-.qq-add-row .btn {
-    flex-shrink: 0;
-}
-/* 老师添加行控件紧凑化，与学科管理添加行同高 */
-#panel-qq .qq-add-row input,
-#panel-qq .qq-add-row select,
-#panel-qq .qq-add-row button {
-    height: 24px;
-    padding: 2px 8px;
-    font-size: 0.82rem;
-    line-height: 1;
-    border-radius: 8px;
-}
 /* 确认弹窗 */
 .confirm-text {
     text-align: center;
@@ -2468,54 +2398,6 @@ body.reduce-anim .segmented .seg-btn {
     line-height: 1.5;
 }
 
-/* QQ 状态按钮 —— 与状态卡片合体，打开时周围柔和绿光，关闭时普通卡片 */
-.qq-status-btn {
-    width: 100%;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 12px 14px;
-    border-radius: 12px;
-    border: 1.5px solid rgba(0, 0, 0, 0.08);
-    background: rgba(0, 0, 0, 0.03);
-    cursor: pointer;
-    text-align: left;
-    font-family: inherit;
-    transition: background 0.3s var(--transition-smooth),
-                border-color 0.3s var(--transition-smooth),
-                box-shadow 0.4s var(--transition-smooth),
-                transform 0.15s var(--transition-smooth);
-    margin-bottom: 6px;
-}
-.qq-status-btn:active { transform: scale(0.985); }
-.qq-status-btn:focus-visible {
-    outline: none;
-    box-shadow: var(--glow-focus);
-}
-/* 关：普通灰卡 */
-.qq-status-btn.qq-status-off {
-    background: rgba(0, 0, 0, 0.03);
-    border-color: rgba(0, 0, 0, 0.08);
-    box-shadow: none;
-}
-/* 开：柔和绿光 */
-.qq-status-btn.qq-status-on {
-    background: rgba(34, 197, 94, 0.10);
-    border-color: rgba(34, 197, 94, 0.40);
-    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.38),
-                0 0 6px 1px rgba(34, 197, 94, 0.22),
-                0 0 14px 3px rgba(34, 197, 94, 0.12);
-}
-@media (hover: hover) {
-    .qq-status-btn.qq-status-off:hover {
-        background: rgba(0, 0, 0, 0.05);
-    }
-    .qq-status-btn.qq-status-on:hover {
-        box-shadow: 0 0 0 1.5px rgba(34, 197, 94, 0.42),
-                    0 0 8px 2px rgba(34, 197, 94, 0.28),
-                    0 0 18px 4px rgba(34, 197, 94, 0.15);
-    }
-}
 .archive-open-btn {
     width: 100%;
     padding: 10px;

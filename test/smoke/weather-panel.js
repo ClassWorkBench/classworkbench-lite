@@ -4,12 +4,21 @@
 
 const { spawn } = require('child_process');
 const path = require('path');
+const os = require('os');
+const fs = require('fs');
 
 const PORT = 9813;
 const root = path.resolve(__dirname, '..', '..');
 const electronBin = require('electron');
 
-const child = spawn(electronBin, ['.', `--remote-debugging-port=${PORT}`, '--no-sandbox'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+// 隔离用户数据目录：不写真实 %APPDATA%，并把协议版本设为当前值避免向导遮挡
+const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'cwb-weather-'));
+fs.writeFileSync(path.join(userData, 'homework-data.enc'), JSON.stringify({
+    homeworks: [], subjects: null,
+    settings: { wizardCompleted: true, acceptedAgreementVersion: '1.0.0', schemaVersion: 1 }
+}), 'utf8');
+
+const child = spawn(electronBin, ['.', `--remote-debugging-port=${PORT}`, `--user-data-dir=${userData}`, '--no-sandbox'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
 child.stdout.on('data', d => process.stdout.write('[app] ' + d));
 child.stderr.on('data', d => process.stdout.write('[app-err] ' + d));
 
@@ -123,5 +132,7 @@ const check = (name, cond, detail = '') => {
         process.exitCode = 1;
     } finally {
         if (child) child.kill();
+        await sleep(500);
+        try { fs.rmSync(userData, { recursive: true, force: true }); } catch (_) { /* 忽略 */ }
     }
 })();

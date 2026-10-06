@@ -301,7 +301,7 @@
 
     /**
      * 承载组件：增强 root 内的所有 select[data-cselect]，并挂 MutationObserver
-     * 自动增强后续动态插入的 select（如 QQ 老师列表每次重建）。
+     * 自动增强后续动态插入的 select（如学科列表每次重建）。
      * @returns {Function} dispose —— 停掉观察者
      */
     function mount(root) {

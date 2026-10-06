@@ -36,10 +36,10 @@ window.SettingsModules.general = {
                                 <div class="toggle-row">
                                     <div class="toggle-row-text">
                                         <span class="toggle-row-title">开机自启</span>
-                                        <span class="toggle-row-desc">登录 Windows 时自动启动班级工作台</span>
+                                        <span class="toggle-row-desc">登录 Windows 时自动启动班级工作台 Lite</span>
                                     </div>
                                     <label class="setting-toggle">
-                                        <input type="checkbox" id="autoLaunchToggle" aria-label="开机自动启动班级工作台">
+                                        <input type="checkbox" id="autoLaunchToggle" aria-label="开机自动启动班级工作台 Lite">
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>

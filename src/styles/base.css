@@ -173,7 +173,7 @@
 
 /* 统一键盘焦点环：用主题色描边替换 Chromium 默认的黄色焦点环。
    样式与设置面板导航栏同款（outline:2px solid var(--accent); outline-offset:2px）。
-   作业卡 / 提醒条 / QQ状态按钮等"大表面"元素，各自保留柔光焦点（--glow-focus），
+   作业卡 / 提醒条 / 状态卡片等"大表面"元素，各自保留柔光焦点（--glow-focus），
    由它们在 components.css 里更靠后的 outline:none + :focus-visible 覆盖本条全局环，
    从而形成「小控件用主题描边、大表面用柔和光晕」的一致观感。 */
 a:focus-visible,

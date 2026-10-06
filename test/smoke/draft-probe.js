@@ -31,9 +31,8 @@ function fmt(d) {
         subjects: null,
         settings: {
             wizardCompleted: true,
-            acceptedAgreementVersion: '1.0.1',
+            acceptedAgreementVersion: '1.0.0',
             schemaVersion: 1,
-            dataEncryption: false,
             cardColumns: 3,
             autoNumber: true
         }
@@ -44,7 +43,10 @@ const child = spawn(electronBin, [
     '.',
     `--remote-debugging-port=${PORT}`,
     `--user-data-dir=${userData}`,
-    '--no-sandbox'
+    '--no-sandbox',
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-renderer-backgrounding'
 ], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
 
 child.stdout.on('data', d => process.stdout.write('[app] ' + d));
@@ -134,35 +136,6 @@ const CLICK_OUTSIDE = `(() => {
         const restored = await evaluate(page.webSocketDebuggerUrl, `document.getElementById('newContent').value`);
         console.log('重开恢复内容:', JSON.stringify(restored));
 
-        // ---- 与 QQ 小红点共存检查：同一学科 草稿笔图标 + QQ 红点 ----
-        await evaluate(page.webSocketDebuggerUrl, `(() => {
-            const qq = window.AppState.settings.qq;
-            if (!qq.pendingCandidates) qq.pendingCandidates = [];
-            qq.pendingCandidates.push({ id: 'p1', subjectId: 'math', name: '测试同学', content: '第1题' });
-            if (window.QQPending && window.QQPending.updatePendingBadge) {
-                window.QQPending.updatePendingBadge();
-            }
-            return 'seeded';
-        })()`);
-        await sleep(200);
-        const conflict = JSON.parse(await evaluate(page.webSocketDebuggerUrl, `JSON.stringify((function () {
-            const btn = document.querySelector('.subject-pill[data-subject-id="math"]');
-            const kids = Array.from(btn.children);
-            const textSpan = btn.querySelector('.pill-text');
-            const penSlot = btn.querySelector('.pill-pen-slot');
-            const badgeSlot = btn.querySelector('.pill-badge-slot');
-            const badge = badgeSlot ? badgeSlot.querySelector('.pill-badge-inline') : null;
-            return {
-                hasPen: !!(penSlot && penSlot.classList.contains('open')),
-                hasBadge: !!(badgeSlot && badgeSlot.classList.contains('open') && badge && badge.textContent),
-                badgeAfterText: !!(badgeSlot && textSpan && kids.indexOf(badgeSlot) > kids.indexOf(textSpan)),
-                penBeforeText: !!(penSlot && textSpan && kids.indexOf(penSlot) < kids.indexOf(textSpan)),
-                order: kids.map(k => k.classList.contains('pill-text') ? 'text'
-                    : (k.classList.contains('pill-pen-slot') ? 'pen'
-                    : (k.classList.contains('pill-badge-slot') ? 'badge' : k.tagName))).join(' | ')
-            };
-        })())`));
-        console.log('QQ 红点共存:', JSON.stringify(conflict));
         await evaluate(page.webSocketDebuggerUrl, `document.getElementById('btnCancel').click()`);
         await sleep(400);
 
@@ -234,16 +207,15 @@ const CLICK_OUTSIDE = `(() => {
         const addOk = afterAdd.draft === '草稿内容A\n第二行' && afterAdd.pillIcon === true && restored === '草稿内容A\n第二行';
         const editOk = afterEdit.draft !== null && afterEdit.draft.indexOf('新修改内容') >= 0 && afterEdit.cardIcon === true && restoredEdit.indexOf('新修改内容') >= 0;
         const colorOk = afterAdd.pillIconColor === afterAdd.pillColor && afterEdit.cardIconColor === afterEdit.cardSubjectColor;
-        const conflictOk = conflict.hasPen === true && conflict.hasBadge === true && conflict.badgeAfterText === true && conflict.penBeforeText === true;
         const slotAnimOk = slotSamples.some(w => w > 0 && w < 14) && slotSamples[slotSamples.length - 1] >= 14;
         const dateAnimOk = dateSamples[0] < dateSamples[dateSamples.length - 1] &&
             dateSamples.some((w, i) => i > 0 && w > dateSamples[0] && w < dateSamples[dateSamples.length - 1]);
         console.log('追色校验: 胶囊', afterAdd.pillIconColor, '===', afterAdd.pillColor,
             '| 卡片', afterEdit.cardIconColor, '===', afterEdit.cardSubjectColor);
-        console.log('\n结论:', addOk && editOk && colorOk && conflictOk && slotAnimOk && dateAnimOk
-            ? '✓ 草稿/追色/共存/胶囊动画 全部正常'
+        console.log('\n结论:', addOk && editOk && colorOk && slotAnimOk && dateAnimOk
+            ? '✓ 草稿/追色/胶囊动画 全部正常'
             : '✗ 存在异常（见上方输出）');
-        process.exitCode = addOk && editOk && colorOk && conflictOk && slotAnimOk && dateAnimOk ? 0 : 1;
+        process.exitCode = addOk && editOk && colorOk && slotAnimOk && dateAnimOk ? 0 : 1;
     } catch (e) {
         console.error('探测失败:', e.message);
         process.exitCode = 1;

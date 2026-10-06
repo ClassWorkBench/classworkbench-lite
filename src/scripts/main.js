@@ -90,7 +90,11 @@
         if (window.AppMoreMenu && typeof window.AppMoreMenu.prewarmPaint === 'function') {
             try {
                 window.AppMoreMenu.prewarmPaint();
-                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+                // 双 rAF 等一次合成；窗口处于后台/隐藏时 rAF 会被节流，加超时兜底避免启动流程卡死
+                await Promise.race([
+                    new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))),
+                    new Promise(r => setTimeout(r, 300))
+                ]);
             } catch (e) {
                 console.warn('[预热] 模糊合成预热失败:', e);
             }
@@ -131,6 +135,11 @@
         }
 
         setTimeout(adjustContentPadding, 100);
+
+        // 启动完成标志：供冒烟/自动化探测等待「交互已就绪」。
+        // 注意 AppRegistry.ready 只代表模块脚本已加载，此时本 init 仍可能未绑定事件。
+        window.AppReady = true;
+        document.dispatchEvent(new CustomEvent('app:ready'));
     }
 
     if (document.readyState === 'loading') {

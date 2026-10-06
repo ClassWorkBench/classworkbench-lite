@@ -56,7 +56,7 @@ function createWindowModule({
         try {
             const iconPath = path.join(assetsDir, 'icon.ico');
             const tray = new Tray(iconPath);
-            tray.setToolTip('班级工作台');
+            tray.setToolTip('班级工作台 Lite');
             tray.setContextMenu(Menu.buildFromTemplate([
                 { label: '显示主界面', click: showMainWindow },
                 { type: 'separator' },

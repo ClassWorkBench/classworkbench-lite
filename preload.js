@@ -67,7 +67,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         genKeyPair: () => ipcRenderer.invoke('qweather:genKeyPair'),
     },
 
-    // 读取随应用分发的协议/文档源文件（在线缓存优先，后台已同步最新；agreement / privacy / security / opensource / contact）
+    // 读取随应用分发的协议/文档源文件（Lite 版已关闭在线同步，随包文档为唯一真源；agreement / privacy / security / opensource / contact）
     readDoc: (name) => ipcRenderer.invoke('docs:read', name),
 
     // 在线/内置文档版本号（用于判断协议是否已更新）

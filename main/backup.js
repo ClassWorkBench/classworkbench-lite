@@ -60,7 +60,7 @@ function createBackupModule({ app, dialog, fs, path, log, store, archive }) {
         }
         const result = await dialog.showSaveDialog({
             title: '导出备份',
-            defaultPath: suggestedName || '班级工作台备份.json',
+            defaultPath: suggestedName || '班级工作台 Lite 备份.json',
             filters: [{ name: 'JSON 备份', extensions: ['json'] }]
         });
         if (result.canceled || !result.filePath) {

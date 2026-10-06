@@ -1,5 +1,5 @@
 ; ============================================================
-;  班级工作台 · 卸载询问是否删除用户数据
+;  班级工作台 Lite · 卸载询问是否删除用户数据
 ;  通过 electron-builder 的 nsis.include 注入到 NSIS 卸载器
 ; ------------------------------------------------------------
 ;  ⚠️ 本文件不能命名为 uninstaller.nsh / installer.nsh：
@@ -34,7 +34,7 @@
   ; 静默卸载（如自动升级触发的卸载）不打扰用户，直接保留数据
   IfSilent cbw_un_ask_done 0
 
-  MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "是否同时删除「班级工作台」在本机的用户数据？$\r$\n$\r$\n这会清除：作业记录、学科与老师设置、归档数据、天气与 QQ 配置等，且无法恢复。$\r$\n$\r$\n选择「否」可完整保留数据。" IDYES cbw_un_ask_delete IDNO cbw_un_ask_keep
+  MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "是否同时删除「班级工作台 Lite」在本机的用户数据？$\r$\n$\r$\n这会清除：作业记录、学科设置、归档数据、天气配置等，且无法恢复。$\r$\n$\r$\n选择「否」可完整保留数据。" IDYES cbw_un_ask_delete IDNO cbw_un_ask_keep
   Goto cbw_un_ask_done
 
   cbw_un_ask_delete:

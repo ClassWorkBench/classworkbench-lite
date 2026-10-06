@@ -14,7 +14,7 @@
 // 用法：
 //   node tools/crazy-anim.js [轮数]     默认 40 轮，每轮约 4~5 秒
 //
-// 安全：只做界面层的开关与滑切，不触发「导出图片 / 浮窗 / 拍照搜题」等有副作用的
+// 安全：只做界面层的开关与滑切，不触发「导出图片 / 浮窗 / 备份导出」等有副作用的
 //       入口，也不碰任何网络或写盘操作，结束后自动把日期还原回今天并关闭设置。
 // ============================================================================
 'use strict';
@@ -111,7 +111,7 @@ const slide = async (cdp, dir) => {
             await cdp.key('esc', 'Escape', 'Escape');       // 用 Esc 再关一次
             await cdp.ev(`document.activeElement && document.activeElement.blur && document.activeElement.blur();0`);
 
-            // ---- B. 设置面板 疯狂轮巡 9 个分栏 ----
+            // ---- B. 设置面板 疯狂轮巡全部 8 个分栏 ----
             await cdp.ev(`document.getElementById('openSettingsBtn').click();0`);
             await sleep(T * 2);
             const navs = JSON.parse(await cdp.ev(`JSON.stringify(Array.from(document.querySelectorAll('.settings-nav-item')).map(b=>b.dataset.panel))`));
@@ -121,16 +121,6 @@ const slide = async (cdp, dir) => {
                 await cdp.ev(`document.getElementById('panel-${p}') && [...document.querySelectorAll('.settings-panel')].forEach(x=>x.classList.toggle('active', x.id==='panel-${p}'));0`);
                 await sleep(T);                              // 可见的栏目切换跳动
             }
-            // 在 solve 面板拨动 角度分段 + 镜像开关 + 灵敏度/清晰度分段
-            await cdp.ev(`[...document.querySelectorAll('.settings-nav-item')].forEach(b=>b.classList.toggle('active', b.dataset.panel==='solve'));` +
-                `[...document.querySelectorAll('.settings-panel')].forEach(x=>x.classList.toggle('active', x.id==='panel-solve'));0`);
-            await sleep(T);
-            for (const r of ['90', '180', '270', '0']) await cdp.ev(`document.querySelector('#solveOrientSeg .seg-btn[data-rot="${r}"]') && document.querySelector('#solveOrientSeg .seg-btn[data-rot="${r}"]').click();0`);
-            await cdp.ev(`const t=document.getElementById('solveMirrorToggle'); if(t){t.checked=!t.checked;t.click();}0`);
-            for (const s of ['1', '2', '3', '2']) await cdp.ev(`document.querySelector('#solveSensitivitySeg .seg-btn[data-sens="${s}"]') && document.querySelector('#solveSensitivitySeg .seg-btn[data-sens="${s}"]').click();0`);
-            for (const rs of ['640', '1080', '720']) await cdp.ev(`document.querySelector('#solveResolutionSeg .seg-btn[data-res="${rs}"]') && document.querySelector('#solveResolutionSeg .seg-btn[data-res="${rs}"]').click();0`);
-            await cdp.ev(`const a=document.getElementById('solveAutoScanToggle'); if(a){a.click();}0`);
-            await sleep(T);
             await cdp.key('esc', 'Escape', 'Escape');       // 关设置
 
             // ---- C. 日期 前进 6 天 → 后退 6 天（整屏滑切，含空状态）----

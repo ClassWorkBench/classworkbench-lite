@@ -3,6 +3,14 @@
 > 记录日期：2026-08-19
 > 需求：安装包通过 NSIS 卸载时，弹窗询问用户是否一并删除「班级工作台」的用户数据。
 
+> **Lite 版补充（2026-10-06）**：本文是完整版时代的历史调研记录，文中 `d:\ClassWorkBench` 路径与
+> `%APPDATA%\classworkbench`、`%APPDATA%\班级工作台` 等均为完整版情况。Lite 版现状：
+> - `package.json` 的 `name = classworkbench-lite`、`productName = 班级工作台 Lite`；
+> - `main.js` **显式** `app.setPath('userData', %APPDATA%\classworkbench-lite)`，开发版与打包版一致；
+> - 卸载脚本 `build/cwb-uninstaller.nsh` 依次尝试删除 `$APPDATA\{APP_FILENAME}` / `{APP_PRODUCT_FILENAME}` /
+>   `{APP_PACKAGE_NAME}`；在 Lite 命名下展开为 `classworkbench-lite` 与 `班级工作台 Lite`，已覆盖实际数据目录。
+> - Lite 不含 QQ 配置与数据加密，卸载弹窗文案已同步更新。
+
 ---
 
 ## 一、需求背景

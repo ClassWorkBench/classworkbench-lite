@@ -1,13 +1,17 @@
 // ============================================
-// main/docs-sync.js — 协议/文档在线同步
-// 升级检测：启动时后台异步拉取线上最新文档（三源兜底），
-//           SHA-256 与本地缓存比对，变则覆盖缓存；读取时优先用在线缓存。
-// 三源兜底顺序（main 进程 net.fetch，绕过渲染层 CSP）：
-//   1. GitHub Pages（自管仓库，内地相对稳）→ 2. jsDelivr CDN → 3. raw 直链
-// 数据源：主仓库为唯一真源；jsDelivr/raw 自动跟随主仓库，Pages 由发布脚本同步。
+// main/docs-sync.js — 协议/文档读取
+// Lite 版关闭在线同步（DOC_SYNC_ENABLED = false）：随包文档为唯一真源，
+// 启动时不再联网拉取，也就不会从完整版仓库取到已过时的旧条款。
+// 若日后为 Lite 建立独立文档仓库，打开开关即可恢复以下完整同步能力：
+//   启动后台异步拉取（三源兜底：GitHub Pages → jsDelivr → raw 直链），
+//   SHA-256 与本地缓存比对，变更则覆盖缓存并触发协议重新确认。
 // 版本：每份文档顶部约定 "**版本：vX.Y.Z**"，用于决定是否触发重新确认协议。
-// 缓存目录：userData/doc-cache/{name}.md + meta.json
+// 缓存目录（仅在开关打开时写入）：userData/doc-cache/{name}.md + meta.json
 // ============================================
+
+// Lite 版没有独立的文档仓库：随包文档即唯一真源，关闭在线同步，
+// 避免从完整版仓库拉取仍包含"数据加密 / QQ 捕获"等已移除功能的旧条款。
+const DOC_SYNC_ENABLED = false;
 
 const DOC_FILES = Object.freeze({
     agreement: 'AGREEMENT.md',
@@ -93,6 +97,8 @@ function createDocsSync({ app, fs, path, crypto, net, log }) {
     function readDoc(name) {
         const file = DOC_FILES[name];
         if (!file) return null;
+        // Lite：随包文档为唯一真源，忽略历史在线缓存
+        if (!DOC_SYNC_ENABLED) return readBundled(name);
         // 原子写 + 损坏容错：缓存文件读取失败（半写损坏等）时回退随包文件
         try {
             return fs.readFileSync(contentPath(name), 'utf8');
@@ -146,6 +152,10 @@ function createDocsSync({ app, fs, path, crypto, net, log }) {
      * changed 中按文档名列出本次确有内容变化者（可在渲染层触发重新确认协议）。
      */
     async function sync() {
+        if (!DOC_SYNC_ENABLED) {
+            log.info('[docs-sync] Lite 版已关闭在线文档同步，使用随包文档');
+            return { changed: [], failed: [], effective: {}, disabled: true };
+        }
         const prevMeta = readMeta();
         // TTL 短路：缓存仍在有效期内则跳过网络拉取，直接返回缓存状态（不产生 changed）
         if (isSyncFresh(prevMeta)) {
@@ -189,6 +199,7 @@ function createDocsSync({ app, fs, path, crypto, net, log }) {
 
     // ---- 本地生效对象最近一次成功来源（无则空串） ----
     function sourceFor(name) {
+        if (!DOC_SYNC_ENABLED) return '';
         const meta = readMeta();
         return (meta && meta[name] && meta[name].source) || '';
     }

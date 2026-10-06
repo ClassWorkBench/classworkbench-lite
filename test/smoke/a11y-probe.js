@@ -12,9 +12,17 @@ const PORT = 9811;
 const root = path.resolve(__dirname, '..', '..');
 const electronBin = require('electron'); // 在 node 下 require('electron') 返回可执行文件路径
 
+// 隔离用户数据目录：不写真实 %APPDATA%，并把协议版本设为当前值避免首启/协议向导遮挡
+const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'cwb-a11y-'));
+fs.writeFileSync(path.join(userData, 'homework-data.enc'), JSON.stringify({
+    homeworks: [], subjects: null,
+    settings: { wizardCompleted: true, acceptedAgreementVersion: '1.0.0', schemaVersion: 1 }
+}), 'utf8');
+
 const child = spawn(electronBin, [
     '.',
     `--remote-debugging-port=${PORT}`,
+    `--user-data-dir=${userData}`,
     '--no-sandbox'
 ], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -82,10 +90,10 @@ const check = (name, cond, detail = '') => {
         if (!page) throw new Error('未找到应用页面');
         cdp = new CDP(page.webSocketDebuggerUrl);
 
-        // 等渲染层就绪
+        // 等渲染层就绪：AppRegistry.ready 仅代表模块已加载，AppReady 才代表事件绑定完成
         let ready = false;
         for (let i = 0; i < 40 && !ready; i++) {
-            ready = await cdp.eval('!!window.AppRegistry && window.AppRegistry.ready === true');
+            ready = await cdp.eval('!!window.AppRegistry && window.AppRegistry.ready === true && window.AppReady === true');
             if (!ready) await sleep(500);
         }
         check('渲染层就绪', ready);
@@ -123,7 +131,7 @@ const check = (name, cond, detail = '') => {
 
         await cdp.key('ArrowDown', 'ArrowDown');
         m = JSON.parse(await cdp.eval(`JSON.stringify({ activeId: document.activeElement ? document.activeElement.id : '' })`));
-        check('ArrowDown 巡游到第二项', m.activeId === 'solveSearchBtn', `(got ${m.activeId})`);
+        check('ArrowDown 巡游到第二项', m.activeId === 'exportImageBtn', `(got ${m.activeId})`);
 
         await cdp.key('Escape', 'Escape');
         await sleep(250);
@@ -226,5 +234,7 @@ const check = (name, cond, detail = '') => {
         process.exitCode = 1;
     } finally {
         if (child) child.kill();
+        await sleep(500);
+        try { fs.rmSync(userData, { recursive: true, force: true }); } catch (_) { /* 忽略 */ }
     }
 })();

@@ -1,8 +1,8 @@
 // ============================================
-// main/ipc.js — IPC 胶水层（13 个 handler）
+// main/ipc.js — IPC 胶水层（37 个 handler）
 // 拆分自 main.js L600-L702
 // 设计原则：不写业务逻辑，只做"参数校验 → 调各模块方法 → 返回结果"
-// 业务逻辑放在 archive/background-cache/sidecar/auto-launch/window 各模块里。
+// 业务逻辑放在 archive/background-cache/backup/floating/docs-sync 各模块里。
 // ============================================
 
 /**

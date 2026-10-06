@@ -122,7 +122,7 @@
                 .map(cb => cb.dataset.section);
             if (selected.length === 0) { toast('请至少勾选一个模块'); return; }
             const payload = buildSettingsBackup(selected);
-            const res = await api.exportBackup(`班级工作台-设置备份-${fileStamp()}.json`, payload);
+            const res = await api.exportBackup(`班级工作台Lite-设置备份-${fileStamp()}.json`, payload);
             if (!res) return;
             if (res.canceled) { close(); return; }
             if (!res.success) { toast('备份失败：' + (res.error || '未知错误')); return; }
@@ -286,7 +286,7 @@
                 includeArchives: incArchEl.checked,
                 archivesData
             });
-            const res = await api.exportBackup(`班级工作台-作业备份-${fileStamp()}.json`, payload);
+            const res = await api.exportBackup(`班级工作台Lite-作业备份-${fileStamp()}.json`, payload);
             if (!res) return;
             if (res.canceled) { close(); return; }
             if (!res.success) { toast('备份失败：' + (res.error || '未知错误')); return; }

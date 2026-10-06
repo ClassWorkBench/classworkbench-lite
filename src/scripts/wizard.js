@@ -83,7 +83,7 @@
                 return `
                     <div class="wizard-welcome">
                         <div class="wizard-welcome-icon" aria-hidden="true">${emoji('📖')}</div>
-                        <h2>欢迎使用班级工作台</h2>
+                        <h2>欢迎使用班级工作台 Lite</h2>
                         <div class="wizard-welcome-char-box" id="wizardCharBox"></div>
                         <p class="wizard-welcome-sub">为班级大屏打造的作业展示工具</p>
                     </div>
@@ -182,10 +182,10 @@
                         <div class="toggle-row">
                             <div class="toggle-row-text">
                                 <span class="toggle-row-title">${emoji('🚀')} 开机自启</span>
-                                <span class="toggle-row-desc">登录 Windows 时自动启动班级工作台（教室大屏建议开启）</span>
+                                <span class="toggle-row-desc">登录 Windows 时自动启动班级工作台 Lite（教室大屏建议开启）</span>
                             </div>
                             <label class="setting-toggle">
-                                <input type="checkbox" id="wizardAutoLaunchToggle" aria-label="开机自动启动班级工作台">
+                                <input type="checkbox" id="wizardAutoLaunchToggle" aria-label="开机自动启动班级工作台 Lite">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>

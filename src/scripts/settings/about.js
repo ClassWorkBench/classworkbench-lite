@@ -20,15 +20,15 @@ window.SettingsModules.about = {
                     <!-- 面板：关于 -->
                     <div class="settings-panel" id="panel-about">
                         <div class="panel-header">
-                            <h3>关于班级工作台</h3>
+                            <h3>关于班级工作台 Lite</h3>
                             <p class="panel-desc">版本信息与更新日志</p>
                         </div>
                         <div class="panel-body">
                             <div class="about-hero">
                                 <div class="about-logo">${emoji('📖')}</div>
                                 <div class="about-name">
-                                    <h2>班级工作台</h2>
-                                    <p>ClassWorkBench · 班级作业与晚修管理桌面工具</p>
+                                    <h2>班级工作台 Lite</h2>
+                                    <p>ClassWorkBench Lite · 班级作业与晚修管理桌面工具</p>
                                 </div>
                             </div>
 

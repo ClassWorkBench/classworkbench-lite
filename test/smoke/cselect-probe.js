@@ -14,7 +14,7 @@ const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'cwb-csel-'));
     fs.writeFileSync(path.join(userData, 'homework-data.enc'), JSON.stringify({
         homeworks: [],
         subjects: null,
-        settings: { wizardCompleted: true, acceptedAgreementVersion: '1.0.1', schemaVersion: 1 }
+        settings: { wizardCompleted: true, acceptedAgreementVersion: '1.0.0', schemaVersion: 1 }
     }), 'utf8');
 })();
 

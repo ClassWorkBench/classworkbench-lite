@@ -1,13 +1,13 @@
 // ============================================
 // main.js  (Electron 主进程)  —— 启动编排层
 // 拆分后约 150 行。业务逻辑已下沉到 main/ 下各领域模块：
-//   main/constants.js       — 共享常量（BG/自启注册表/Sidecar阈值/窗口尺寸）
+//   main/constants.js       — 共享常量（BG 图源/自启注册表/窗口尺寸）
 //   main/archive.js         — 按月归档（原子写入/损坏备份/幂等去重）
 //   main/background-cache.js— 背景图本地缓存（魔数校验/索引/下载驱逐）
 //   main/auto-launch.js     — 开机自启 + 开发版自启清理
 //   main/window.js          — BrowserWindow + Tray + 钩子
 //   main/floating.js        — 浮窗模式（画中画：每卡一窗，置顶可拖）
-//   main/ipc.js             — 32 个 IPC 胶水层 handler（无业务）
+//   main/ipc.js             — 37 个 IPC 胶水层 handler（无业务）
 // ============================================
 
 const { app, BrowserWindow, ipcMain, Tray, Menu, net, clipboard, shell, dialog, screen, nativeTheme } = require('electron');
@@ -18,8 +18,12 @@ const { pathToFileURL } = require('url');
 const { execFileSync } = require('child_process');
 const log = require('electron-log');
 
-// Lite 版使用独立数据目录，与完整版（classworkbench）数据互不干扰
-app.setPath('userData', path.join(app.getPath('appData'), 'classworkbench-lite'));
+// Lite 版使用独立数据目录，与完整版（classworkbench）数据互不干扰。
+// 若命令行显式传入 --user-data-dir（冒烟测试 / 便携运行），尊重该覆盖不再强制，
+// 否则测试会写到真实用户数据目录。
+if (!app.commandLine.hasSwitch('user-data-dir')) {
+    app.setPath('userData', path.join(app.getPath('appData'), 'classworkbench-lite'));
+}
 
 // ---- 模块工厂 ----
 const { STORE_DEFAULTS } = require('./main/constants');
@@ -154,7 +158,7 @@ if (!gotTheLock) {
             getSettings: () => store.get('settings') || {}
         });
 
-        // 协议/文档在线同步（三级兜底 + SHA-256 比对 + 本地缓存），不阻塞启动
+        // 协议/文档读取（Lite 版关闭在线同步，随包文档为唯一真源）
         docsSync = createDocsSync({ app, fs, path, crypto, net, log });
 
         // 和风天气 JWT 认证客户端（主进程签名，渲染层不接触私钥）
@@ -188,7 +192,7 @@ if (!gotTheLock) {
         windowMod.createWindow();
         windowMod.createTray();
 
-        // 后台异步同步协议/文档（不阻塞界面）；变了则通知渲染层展示最新/重弹协议
+        // 触发一次文档同步：Lite 版为 no-op（DOC_SYNC_ENABLED=false），立即返回
         docsSync.sync().then((summary) => {
             if (summary && summary.changed && summary.changed.length) {
                 emitToRenderer('docs:updated', summary);

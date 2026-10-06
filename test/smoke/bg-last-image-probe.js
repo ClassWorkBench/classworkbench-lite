@@ -33,7 +33,7 @@ function fakeJpeg() {
     fs.writeFileSync(path.join(userData, 'homework-data.enc'), JSON.stringify({
         homeworks: [],
         subjects: [],
-        settings: { wizardCompleted: true, acceptedAgreementVersion: '1.0.1', schemaVersion: 1, dataEncryption: false }
+        settings: { wizardCompleted: true, acceptedAgreementVersion: '1.0.0', schemaVersion: 1 }
     }), 'utf8');
 })();
 

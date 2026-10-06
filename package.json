@@ -1,6 +1,6 @@
 {
-  "name": "classworkbench",
-  "version": "1.0.1",
+  "name": "classworkbench-lite",
+  "version": "1.0.0",
   "description": "\u73ED\u7EA7\u5DE5\u4F5C\u53F0 \u2014\u2014 \u9762\u5411\u73ED\u7EA7\u6559\u5B66\u573A\u666F\u7684\u684C\u9762\u5E94\u7528\uFF1A\u4F5C\u4E1A\u7BA1\u7406\u3001\u5B66\u79D1\u914D\u8272\u3001\u5929\u6C14\u9884\u8B66\u3001\u753B\u4E2D\u753B\u6D6E\u7A97\u3002\u672C\u5730\u4F18\u5148\u3001\u7EAF\u660E\u6587\u3001\u8F7B\u91CF\u7CBE\u7B80\u7248\u3002MIT \u5F00\u6E90\u3002",
   "author": "ClassWorkBench Authors",
   "main": "main.js",
@@ -19,15 +19,18 @@
     "smoke:verify-100yr": "node test/smoke/verify-100yr.js"
   },
   "build": {
-    "appId": "com.classworkbench.app",
-    "productName": "\u73ED\u7EA7\u5DE5\u4F5C\u53F0",
-    "executableName": "ClassWorkBench",
+    "appId": "com.classworkbench.lite",
+    "productName": "\u73ED\u7EA7\u5DE5\u4F5C\u53F0 Lite",
+    "executableName": "ClassWorkBenchLite",
     "files": [
       "**/*",
       "!sidecar/**/*",
       "!dist/**/*",
       "!.workbuddy/**/*",
       "!docs/**/*",
+      "!test/**/*",
+      "!tools/**/*",
+      "!build/**/*",
       "!test.bat",
       "!promo/**/*"
     ],
@@ -44,7 +47,7 @@
       {
         "provider": "github",
         "owner": "ClassWorkBench",
-        "repo": "classworkbench"
+        "repo": "classworkbench-lite"
       }
     ]
   },

@@ -88,7 +88,7 @@ function createUpdaterModule({ app, log, getMainWindow, net }) {
             notesPromise = (async () => {
                 try {
                     const res = await net.fetch(
-                        'https://api.github.com/repos/ClassWorkBench/classworkbench/releases/latest',
+                        'https://api.github.com/repos/ClassWorkBench/classworkbench-lite/releases/latest',
                         { headers: { 'Accept': 'application/vnd.github+json' } }
                     );
                     if (!res.ok) {
