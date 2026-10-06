@@ -575,6 +575,14 @@ Lite 版**关闭在线同步**（`DOC_SYNC_ENABLED = false`）：
 | `animations.css` | 过渡与关键帧动画 |
 
 - **主题**：`--bg-body`、`--text-primary`、`--accent`、`--transition-smooth` 等变量驱动深浅色与配色方案；
+
+**模糊预算（性能）**：`backdrop-filter` 代价 ≈ 面积 × 半径，且「带模糊的层持续移动」会每帧重新模糊。三条硬约束：
+- 全屏模态遮罩 `blur(8px)`（曾为 24px；遮罩本身是 55% 黑，半径在深色蒙层上视觉差别极小）；
+- **弹窗本体不再叠 `backdrop-filter`**，改纯 rgba 实底——它压在已模糊的遮罩上，第二层几乎不可见却要再做一次回读+高斯（嵌套模糊）；
+- 空状态玻璃胶囊 `.grid-empty` 保持**静止**，只让内层 `.grid-empty-float` 播 `emptyFloat`。
+
+参考：`chat.deepseek.com` 整份 CSS 仅 8 处 `backdrop-filter`，其模态遮罩为 `blur(2px)`、弹窗为实体表面；我们此前有 70 处声明、全屏遮罩 `blur(24px)` + 弹窗再叠 `blur(16px)`。
+
 - **辅助功能**：三档字号、减弱动画、三路模糊由根元素类名 / 变量切换；
 - **焦点可达性**：小控件用主题描边环，大表面（作业卡 / 提醒条 / 状态卡）用柔光 `--glow-focus`；
 - **玻璃拟态**：半透明背景 + 背景模糊（视辅助功能开关）。

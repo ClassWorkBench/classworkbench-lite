@@ -127,7 +127,7 @@
                 const hint = document.createElement('div');
                 hint.className = 'grid-empty';
                 // 空状态引导：剪贴板 emoji 居中在提示文字上方，整体磨砂玻璃胶囊包裹
-                hint.innerHTML = `<span class="grid-empty-icon" aria-hidden="true">${emoji('📋')}</span><span>今天还没有作业，点下方学科按钮添加</span>`;
+                hint.innerHTML = `<div class="grid-empty-float"><span class="grid-empty-icon" aria-hidden="true">${emoji('📋')}</span><span>今天还没有作业，点下方学科按钮添加</span></div>`;
                 fragment.appendChild(hint);
             } else {
                 cardsGrid.classList.remove('grid-empty-state');
@@ -720,14 +720,16 @@
                         // 让浮动动画无缝续播、不跳回原点。
                         // （实测负 animation-delay 在重启动画上不生效，必须用 currentTime 精确 seek）
                         let phase = 0;
+                        let floatEl = null;
                         if (c.classList && c.classList.contains('grid-empty')) {
-                            const anim = c.getAnimations().find((a) => a.animationName === 'emptyFloat');
+                            floatEl = c.querySelector('.grid-empty-float');
+                            const anim = floatEl && floatEl.getAnimations().find((a) => a.animationName === 'emptyFloat');
                             if (anim) phase = anim.currentTime;
                         }
                         grid.appendChild(c);
-                        if (phase > 0) {
+                        if (phase > 0 && floatEl) {
                             void grid.offsetWidth; // 强制重排，确保迁移重启后的新动画对象已生成
-                            const anim2 = c.getAnimations().find((a) => a.animationName === 'emptyFloat');
+                            const anim2 = floatEl.getAnimations().find((a) => a.animationName === 'emptyFloat');
                             if (anim2) anim2.currentTime = phase;
                         }
                     });

@@ -752,8 +752,10 @@ body.capturing .homework-card .card-actions {
     inset: 0;
     z-index: 999;
     background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(24px) saturate(0.9);
-    -webkit-backdrop-filter: blur(24px) saturate(0.9);
+    /* 半径从 24px 降到 8px：遮罩本就是 55% 黑，模糊半径在深色蒙层上视觉差别极小，
+       但代价 ∝ 面积×半径，全屏遮罩是最大的单项开销（chat.deepseek.com 的模态遮罩只用 blur(2px)）。 */
+    backdrop-filter: blur(8px) saturate(0.9);
+    -webkit-backdrop-filter: blur(8px) saturate(0.9);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -779,8 +781,8 @@ body.capturing .homework-card .card-actions {
 
 .dialog {
     background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: blur(16px) saturate(1.15);
-    -webkit-backdrop-filter: blur(16px) saturate(1.15);
+    /* 不再给弹窗加 backdrop-filter：它压在已被遮罩模糊过的背景上，第二层模糊几乎不可见，
+       却要对其背后画面再做一次回读+两趟高斯（嵌套模糊）。改成纯 rgba 实底后视觉基本一致。 */
     border-radius: 28px;
     border: 1px solid rgba(255, 255, 255, 0.6);
     padding: 28px 24px;

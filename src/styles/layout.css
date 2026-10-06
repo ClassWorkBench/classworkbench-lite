@@ -169,9 +169,8 @@ body:has(.bg-layer.loaded) .bg-mask {
 }
 .grid-empty {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 14px;
+    justify-content: center;
     padding: 26px 44px 30px;
     background: var(--glass-bg);
     backdrop-filter: blur(16px) saturate(1.15);
@@ -185,7 +184,15 @@ body:has(.bg-layer.loaded) .bg-mask {
     text-align: center;
     user-select: none;
     -webkit-user-select: none;
-    /* 上下浮动：整体胶囊轻轻上下漂浮，给空状态一点呼吸感 */
+}
+/* 上下浮动放在内层：外层是带 backdrop-filter 的"玻璃胶囊"，必须保持静止——
+   若让带模糊的层持续移动，合成器每帧都要重新模糊（空看板时永久烧 GPU）。
+   内层（图标+文字）在静止的玻璃里轻轻漂浮，呼吸感保留、模糊不再重算。 */
+.grid-empty-float {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
     animation: emptyFloat 3.2s ease-in-out infinite;
 }
 /* 剪贴板图标：白底圆盘衬底，与磨砂胶囊同系玻璃质感 */
@@ -209,7 +216,7 @@ body:has(.bg-layer.loaded) .bg-mask {
     50%      { transform: translateY(-8px); }
 }
 /* 减弱动画：去掉上下浮动，只留静态引导 */
-body.reduce-anim .grid-empty {
+body.reduce-anim .grid-empty-float {
     animation: none;
 }
 
