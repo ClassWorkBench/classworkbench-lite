@@ -11,6 +11,7 @@
     "test": "node test/check-wiring.mjs && node test/check-custom-select.mjs",
     "test:all": "npm test && npm run check:emoji",
     "smoke:app": "electron . --remote-debugging-port=9222",
+    "smoke:perf": "node test/smoke/perf-probe.js",
     "smoke:slide": "node test/smoke/slide.js",
     "smoke:a11y": "node test/smoke/a11y-probe.js",
     "smoke:stress": "node test/smoke/stress.js",

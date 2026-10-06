@@ -47,6 +47,11 @@ app.commandLine.appendSwitch('enable-features', 'BackForwardCache:memory_limit_i
 app.commandLine.appendSwitch('memory-pressure-offloading');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
+// 窗口被其它窗口遮挡时（教室大屏常见）仍保持满帧渲染：避免 rAF/定时器被节流后
+// 切回窗口的瞬间掉帧、鼠标/按键响应发钝。不改变任何视觉效果。
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+// Windows 原生遮挡检测是上面节流的触发源，一并关闭，保证被其它窗口盖住时不降帧
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 
 // ---- 全局异常捕获 ----
 process.on('uncaughtException', (err) => log.error('[uncaughtException]', err));

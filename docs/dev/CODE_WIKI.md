@@ -374,6 +374,11 @@ Lite 版**关闭在线同步**（`DOC_SYNC_ENABLED = false`）：
 
 `window.Renderer` / `AppRenderer`：渲染底栏学科胶囊、作业卡片网格、空状态、状态提示；维护卡片与学科的 DOM 复用。
 
+**性能要点**：
+- **卡片渲染去重**：`cardsSignature()` 汇总 renderCards 输出的全部输入（日期/列数/美化编号/学科/修改草稿/当日作业）；签名不变则跳过整表重建——主题、字号、背景等与卡片无关的设置变更不会再重建全部卡片（重建会重新栅格化每张卡的 `backdrop-filter` 图层，是本应用最大的单次卡顿源）。
+- **写入前比对**：顶栏晚修进度、学科胶囊 ARIA 标签仅在内容变化时写 DOM；学科胶囊的宽度过渡只在开合态真正变化时触发，避免每次渲染都做强制同步布局。
+- `Renderer._perf` 暴露 `{ cardRebuilds, cardSkips }`，供 `npm run smoke:perf` 验证去重生效。
+
 ### 6.11 modal.js / dialogs.js — 模态与弹窗
 
 `AppModal`（通用遮罩式模态框）、`AppDialogs`（确认 / 提示 / 输入等业务弹窗）。

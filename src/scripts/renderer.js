@@ -20,6 +20,15 @@
     // 'skip' 表示本次跳过入场动画（用于 FLIP 重渲染，避免与位移过渡冲突）
     let prevCardIds = null;
 
+    // 渲染去重：卡片 DOM 只由「卡片签名」这些输入决定。签名不变时跳过整表重建——
+    // 主题/字号/背景等与卡片无关的设置变更也会调 renderAll()，而重建会重新创建并栅格化
+    // 每张卡片的 backdrop-filter 图层（本应用最大的单次卡顿源）。
+    let _cardsSig = null;
+    // 顶部晚修进度上次写入的内容键：无变化则跳过 DOM 写入，避免顶栏毛玻璃层重复重绘
+    let _eveningKey = null;
+    // 轻量计数：供性能探针验证去重确实生效
+    const perf = { cardRebuilds: 0, cardSkips: 0 };
+
     function closeAllCardActions(targetCard) {
         const cards = state.dom.cardsGrid()?.querySelectorAll('.homework-card');
         if (!cards) return;
@@ -68,22 +77,50 @@
         el._dateW = setTimeout(() => { el.style.width = ''; }, 280);
     }
 
+    /**
+     * 卡片渲染签名：覆盖 renderCards() 输出所依赖的全部状态。
+     * 只要签名一致，重建出的 DOM 就与现有 DOM 等价，可安全跳过。
+     */
+    function cardsSignature(todays, editDrafts) {
+        const s = state.settings;
+        const parts = [
+            state.currentViewDate,
+            s.cardColumns,
+            s.beautifyNumber !== false ? 1 : 0
+        ];
+        // 学科：影响卡片配色与学科名
+        for (const sub of state.subjectList) parts.push(sub.id, sub.name, sub.color);
+        // 未保存的修改草稿：影响卡片笔图标
+        parts.push('|edit');
+        for (const k of Object.keys(editDrafts)) parts.push(k, editDrafts[k]);
+        // 当日作业：id/学科/内容（浮窗模式下被隐藏的卡片已在 todays 中排除）
+        parts.push('|hw');
+        for (const hw of todays) parts.push(hw.id, hw.subjectId, hw.subjectName, hw.content);
+        return parts.join('\u0001');
+    }
+
     const Renderer = {
         renderCards() {
             const cardsGrid = state.dom.cardsGrid();
             if (!cardsGrid) return;
 
-            cardsGrid.classList.toggle('cols-3', state.settings.cardColumns === 3);
-
-            const fragment = document.createDocumentFragment();
             const viewDate = state.currentViewDate;
-            // 首屏标记：首次渲染时卡片以"预置不可见态"先完成栅格化，再补入场动画
-            const isFirstRender = (prevCardIds === null);
             // 未保存修改草稿：对应卡片学科名左侧显示笔图标
             const editDrafts = (state.settings.drafts && state.settings.drafts.edit) || {};
             // 浮窗模式中：正在浮窗/已关闭的卡片不在主窗口网格显示
             const fm = window.AppFloatingMode;
             const todays = state.homeworks.filter(hw => hw.date === viewDate && (!fm || !fm.shouldHideCard(hw.id)));
+
+            // 签名不变 → 现有 DOM 与将要渲染的结果等价，直接跳过整表重建
+            const sig = cardsSignature(todays, editDrafts);
+            if (sig === _cardsSig) { perf.cardSkips++; return; }
+            perf.cardRebuilds++;
+
+            cardsGrid.classList.toggle('cols-3', state.settings.cardColumns === 3);
+
+            const fragment = document.createDocumentFragment();
+            // 首屏标记：首次渲染时卡片以"预置不可见态"先完成栅格化，再补入场动画
+            const isFirstRender = (prevCardIds === null);
 
             if (todays.length === 0) {
                 cardsGrid.classList.add('grid-empty-state');
@@ -262,6 +299,7 @@
             cardsGrid.appendChild(fragment);
             // 记录本次渲染的卡片集合，供下次渲染判断"新增"
             prevCardIds = new Set(todays.map(h => h.id));
+            _cardsSig = sig;
             // 首屏：预置态栅格化完成后，下一帧统一补 card-enter，按 40ms 错峰弹出
             if (isFirstRender) {
                 requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -306,7 +344,9 @@
 
             // 同步"未保存草稿"笔图标（学科胶囊文字左侧，插槽带动画）
             const draftMap = (state.settings.drafts && state.settings.drafts.add) || {};
-            subjectPillsDiv.querySelectorAll('.subject-pill').forEach(btn => {
+            // 只查询一次，两个循环复用，避免每次 renderAll 重复两遍 NodeList 查询
+            const pills = subjectPillsDiv.querySelectorAll('.subject-pill');
+            pills.forEach(btn => {
                 const sid = btn.dataset.subjectId;
                 const hasDraft = !!draftMap[sid];
                 const textSpan = btn.querySelector('.pill-text');
@@ -322,16 +362,21 @@
                     btn.insertBefore(slot, textSpan);
                 }
                 if (slot) {
-                    slot.classList.toggle('open', hasDraft);
-                    const target = hasDraft && slot.firstElementChild ? slot.firstElementChild.offsetWidth : 0;
-                    window.AppUtils.animateElementWidth(slot, target);
+                    // 仅在开合状态真正变化时才测宽 + 过渡：否则每次 renderAll 都要对每个
+                    // 学科胶囊做一次强制同步布局（getBoundingClientRect + offsetWidth）。
+                    if (slot.classList.contains('open') !== hasDraft) {
+                        slot.classList.toggle('open', hasDraft);
+                        const target = hasDraft && slot.firstElementChild ? slot.firstElementChild.offsetWidth : 0;
+                        window.AppUtils.animateElementWidth(slot, target);
+                    }
                 }
                 const name = textSpan ? textSpan.textContent : '';
-                btn.setAttribute('aria-label', hasDraft ? `继续输入 ${name} 作业草稿` : `添加 ${name} 作业`);
+                const nextLabel = hasDraft ? `继续输入 ${name} 作业草稿` : `添加 ${name} 作业`;
+                if (btn.getAttribute('aria-label') !== nextLabel) btn.setAttribute('aria-label', nextLabel);
             });
 
             // 更新 hidden 状态（复用节点，触发 CSS 过渡）
-            subjectPillsDiv.querySelectorAll('.subject-pill').forEach(btn => {
+            pills.forEach(btn => {
                 const subjId = btn.dataset.subjectId;
                 const hasHW = addedIds.has(subjId);
 
@@ -381,14 +426,21 @@
                 const elapsed = currentMinutes - activeSection.startMin;
                 const total = activeSection.endMin - activeSection.startMin;
                 const percent = Math.min(100, Math.round((elapsed / total) * 100));
-                state.dom.eveningLabel().innerHTML = emoji('🌙') + ` 第${activeSection.index + 1}节晚修`;
                 const h = Math.floor(elapsed / 60);
                 const m = elapsed % 60;
-                state.dom.eveningTime().textContent = h > 0 ? `${h}h${m}min` : `${m}min`;
+                const label = emoji('🌙') + ` 第${activeSection.index + 1}节晚修`;
+                const timeText = h > 0 ? `${h}h${m}min` : `${m}min`;
+                const key = `${label}|${timeText}|${percent}`;
+                if (key === _eveningKey) return;   // 无变化：跳过写入，避免顶栏毛玻璃重复重绘
+                _eveningKey = key;
+                state.dom.eveningLabel().innerHTML = label;
+                state.dom.eveningTime().textContent = timeText;
                 state.dom.progressFill().style.width = percent + '%';
                 const bar = state.dom.progressBar();
                 if (bar) bar.setAttribute('aria-valuenow', percent);
             } else {
+                if (_eveningKey === 'none') return;
+                _eveningKey = 'none';
                 state.dom.eveningLabel().innerHTML = emoji('🌙') + ' 未在晚修';
                 state.dom.eveningTime().textContent = '--';
                 state.dom.progressFill().style.width = '0%';
@@ -690,6 +742,7 @@
         }
     };
 
+    Renderer._perf = perf;   // 供 test/smoke/perf-probe.js 读取
     window.Renderer = Renderer;
     window.AppRenderer = Renderer;
 })();
