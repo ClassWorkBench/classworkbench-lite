@@ -6,7 +6,7 @@
 
 (function () {
     const state = window.AppState;
-    const { escapeHtml, toast } = window.AppUtils;
+    const { escapeHtml, toast, isBlankHomeworkInput } = window.AppUtils;
     const { showModal } = window.AppModal;
     const { persistHomeworks, saveSettings } = window.AppStorage;
     const Renderer = window.Renderer;
@@ -118,7 +118,8 @@
             // 空白点击 / Esc 关闭：保留输入为草稿；显式按钮关闭由按钮自身处理
             if (reason === 'overlay' || reason === 'escape') {
                 const v = ta.value.trim();
-                if (v) saveDraft('add', subject.id, v);
+                // 只有自动编号/空白不算草稿（否则开一下弹窗再关掉，胶囊就会多出笔图标）
+                if (v && !isBlankHomeworkInput(v)) saveDraft('add', subject.id, v);
                 else clearDraft('add', subject.id);
             }
             if (reason === 'save' && !state.settings.reduceAnimation) playLanding(landingEl);
@@ -227,7 +228,7 @@
             // 空白点击 / Esc 关闭：内容有改动则保留草稿
             if (reason === 'overlay' || reason === 'escape') {
                 const v = ta.value.trim();
-                if (v && v !== hw.content.trim()) saveDraft('edit', hw.id, v);
+                if (v && v !== hw.content.trim() && !isBlankHomeworkInput(v)) saveDraft('edit', hw.id, v);
                 else clearDraft('edit', hw.id);
             }
             if (reason === 'save' && !state.settings.reduceAnimation) playLanding(landingEl);

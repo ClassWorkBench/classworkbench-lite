@@ -395,6 +395,8 @@ Lite 版**关闭在线同步**（`DOC_SYNC_ENABLED = false`）：
 
 `AppModal`（通用遮罩式模态框）、`AppDialogs`（确认 / 提示 / 输入等业务弹窗）。
 
+**草稿规则**：添加弹窗会自动预填 `1. `；点空白 / Esc 关闭时，仅当内容**去掉自动编号后仍有实际内容**才存为草稿（`AppUtils.isBlankHomeworkInput`），否则清除草稿。否则「开一下弹窗再关掉」会在胶囊上留下笔图标、把后面的学科挤出可视区。`storage.loadAll` 启动时会清理历史遗留的「只含编号」草稿并落盘。
+
 ### 6.12 search.js — 作业搜索 ★
 
 `window.AppSearch`：作业关键词搜索、过滤与结果高亮。

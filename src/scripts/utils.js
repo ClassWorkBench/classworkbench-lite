@@ -169,6 +169,17 @@ function animateElementWidth(el, targetWidth) {
     }, 280);
 }
 
+/**
+ * 「作业输入」是否为空内容：只含自动编号（1. / 2、/ 3． 等）与空白时，视为没有真正输入。
+ * 用于避免「打开添加弹窗 → 直接关闭」把预填的 "1. " 误存成草稿
+ * （否则学科胶囊会莫名长出笔图标，还会把后面的学科挤出可视区）。
+ */
+function isBlankHomeworkInput(text) {
+    return !String(text == null ? '' : text)
+        .replace(/\d+\s*[.、．]/g, '')
+        .replace(/\s+/g, '');
+}
+
 window.AppUtils = {
     mdToHtml,
     todayStr,
@@ -182,4 +193,5 @@ window.AppUtils = {
     renderContentBySetting,
     toast,
     animateElementWidth,
+    isBlankHomeworkInput,
 };

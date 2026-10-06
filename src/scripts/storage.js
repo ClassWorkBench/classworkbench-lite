@@ -5,6 +5,7 @@
 
 (function () {
     const { DEFAULT_SUBJECTS } = window.AppConfig;
+    const { isBlankHomeworkInput } = window.AppUtils;
     const state = window.AppState;
     const { toast } = window.AppUtils;
     const api = window.electronAPI;
@@ -71,6 +72,16 @@
             if (!state.settings.drafts.edit || typeof state.settings.drafts.edit !== 'object') {
                 state.settings.drafts.edit = {};
             }
+            // 迁移：清理"只含自动编号"的历史草稿（打开添加弹窗又关闭时被误存），
+            // 否则学科胶囊会一直显示笔图标、把后面的学科挤出可视区
+            let draftsPruned = false;
+            for (const kind of ['add', 'edit']) {
+                const map = state.settings.drafts[kind];
+                for (const key of Object.keys(map)) {
+                    if (isBlankHomeworkInput(map[key])) { delete map[key]; draftsPruned = true; }
+                }
+            }
+            if (draftsPruned) _persist().catch(() => {});   // 落盘，避免每次启动重复清理
             // ---- Schema 版本管理 ----
             if (!state.settings.schemaVersion) state.settings.schemaVersion = 1;
             // ---- 首次使用向导兜底 ----
