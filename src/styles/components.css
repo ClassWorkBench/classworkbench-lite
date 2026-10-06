@@ -752,10 +752,10 @@ body.capturing .homework-card .card-actions {
     inset: 0;
     z-index: 999;
     background: rgba(0, 0, 0, 0.55);
-    /* 半径从 24px 降到 8px：遮罩本就是 55% 黑，模糊半径在深色蒙层上视觉差别极小，
-       但代价 ∝ 面积×半径，全屏遮罩是最大的单项开销（chat.deepseek.com 的模态遮罩只用 blur(2px)）。 */
-    backdrop-filter: blur(8px) saturate(0.9);
-    -webkit-backdrop-filter: blur(8px) saturate(0.9);
+    /* 保持 24px：实测 24→8 在照片壁纸下有可见差别（平均像素差 ~9.7），
+       且遮罩仅在弹窗打开时一次性栅格化（已由 overlay-prewarm 预热），持续开销极小。 */
+    backdrop-filter: blur(24px) saturate(0.9);
+    -webkit-backdrop-filter: blur(24px) saturate(0.9);
     display: flex;
     align-items: center;
     justify-content: center;
