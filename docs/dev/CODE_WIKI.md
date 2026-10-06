@@ -379,6 +379,18 @@ Lite 版**关闭在线同步**（`DOC_SYNC_ENABLED = false`）：
 - **写入前比对**：顶栏晚修进度、学科胶囊 ARIA 标签仅在内容变化时写 DOM；学科胶囊的宽度过渡只在开合态真正变化时触发，避免每次渲染都做强制同步布局。
 - `Renderer._perf` 暴露 `{ cardRebuilds, cardSkips }`，供 `npm run smoke:perf` 验证去重生效。
 
+### 6.10.1 共享元素形变（iOS 式弹窗动画）
+
+点击底部学科胶囊/卡片编辑时，对话框不再"原地弹出"，而是**从触发元素的位置长出来**；保存后对话框再**收束回看板卡片**。
+
+- 触发：`renderer.js` 打开弹窗时传入 `originRect`（胶囊/卡片的 `getBoundingClientRect()`）。
+- 代价/实现：`modal.js` 的 `showModal(html, onClose, { originRect })` 接收来源矩形。入场先加 `.dialog.morph`（停掉 `dialogPop` 关键帧）并量取最终尺寸，再把 `transform` 设为「平移到来源中心 + 等比缩放到来源宽度」，下一帧过渡到 `scale(1)`（`--transition-ios`）。
+- 退场：`close(reason, morphTarget)` 传入目标卡片矩形，对话框 `transform` 收束到该矩形（内接缩放）并淡出（`--transition-ios-in`）；卡片随后播放 `card-morph-ack` 轻微发光表示"被接收"。
+- 配套：`body.morph-open` 让底部胶囊整体溶解退场（`!important` 压过 `barRise` 的 `fill:both`）。
+- 减弱动画（`settings.reduceAnimation`）下自动回退为原来的 `dialogPop`/`dialogPopOut`，不做形变。
+- 验证：`npm run smoke:morph`（16 项：入场形变态、来源 transform、落定清理、退场收束、卡片落点、减弱回退）。
+- 空闲预热：启动 1.2s 后以 `overlay-prewarm` 近乎不可见地渲染一次「蒙层+对话框」毛玻璃，把首次合成的开销挪到空闲期。
+
 ### 6.11 modal.js / dialogs.js — 模态与弹窗
 
 `AppModal`（通用遮罩式模态框）、`AppDialogs`（确认 / 提示 / 输入等业务弹窗）。

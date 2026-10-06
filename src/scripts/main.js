@@ -140,6 +140,34 @@
         // 注意 AppRegistry.ready 只代表模块脚本已加载，此时本 init 仍可能未绑定事件。
         window.AppReady = true;
         document.dispatchEvent(new CustomEvent('app:ready'));
+
+        // 底栏入场动画 barRise 用 fill:both，结束后会把 transform/opacity 钉在结束帧，
+        // 导致共享元素形变时「底部胶囊溶解」的样式不生效 → 播完后清掉 animation。
+        const bottomCapsule = document.getElementById('bottomCapsule');
+        if (bottomCapsule) {
+            const clearBarRise = (e) => {
+                if (e.animationName !== 'barRise') return;
+                bottomCapsule.style.animation = 'none';
+                bottomCapsule.removeEventListener('animationend', clearBarRise);
+            };
+            bottomCapsule.addEventListener('animationend', clearBarRise);
+            setTimeout(() => { bottomCapsule.style.animation = 'none'; }, 900);
+        }
+
+        // 空闲预热「蒙层 + 对话框」毛玻璃：消除首次弹窗的合成卡顿（不改变视觉效果）
+        setTimeout(() => {
+            const root = document.getElementById('modalRoot');
+            if (!root || root.querySelector('.overlay')) return;   // 已有弹窗：跳过
+            const ov = document.createElement('div');
+            ov.className = 'overlay overlay-prewarm';
+            ov.setAttribute('aria-hidden', 'true');
+            const dg = document.createElement('div');
+            dg.className = 'dialog';
+            dg.innerHTML = '<h3>&nbsp;</h3><div style="height:120px"></div>';
+            ov.appendChild(dg);
+            root.appendChild(ov);
+            requestAnimationFrame(() => requestAnimationFrame(() => ov.remove()));
+        }, 1200);
     }
 
     if (document.readyState === 'loading') {

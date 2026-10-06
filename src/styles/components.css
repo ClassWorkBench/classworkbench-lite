@@ -238,6 +238,9 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     overflow: hidden;
     z-index: 5;
 }
+.homework-card.card-morph-ack {
+    animation: cardMorphAck 0.66s var(--transition-smooth);
+}
 .homework-card:focus-visible {
     outline: none; /* 大表面保留柔光焦点，覆盖 base.css 的统一描边环 */
     box-shadow: var(--glow-focus);
@@ -758,6 +761,21 @@ body.capturing .homework-card .card-actions {
     animation: fadeIn 0.3s var(--transition-smooth);
     pointer-events: auto;
 }
+/* 共享元素形变入场：蒙层淡入稍慢一点，让对话框"从胶囊长出来"的过程读得清 */
+#modalRoot .overlay.morph {
+    animation: fadeIn 0.45s var(--transition-smooth);
+}
+/* 空闲预热：以近乎不可见的方式先渲染一次「蒙层 + 对话框」毛玻璃，
+   把 backdrop-filter 首次合成的一次性开销挪到空闲期（与更多菜单 prewarm 同一思路），
+   让首次弹窗也顺滑。元素随即被移除，不影响任何交互。 */
+#modalRoot .overlay.overlay-prewarm {
+    opacity: 0.001;
+    animation: none;
+    pointer-events: none;
+}
+#modalRoot .overlay.overlay-prewarm .dialog {
+    animation: none;
+}
 
 .dialog {
     background: rgba(255, 255, 255, 0.72);
@@ -795,6 +813,11 @@ body.capturing .homework-card .card-actions {
         opacity: 0;
         transform: scale(0.92) translateY(18px);
     }
+}
+/* 形变模式：停掉 dialogPop 关键帧——关键帧会覆盖 JS 设置的 inline transform，
+   且会让 getBoundingClientRect 量到动画中间态而非最终尺寸 */
+.dialog.morph {
+    animation: none;
 }
 .dialog.wide {
     max-width: 720px;

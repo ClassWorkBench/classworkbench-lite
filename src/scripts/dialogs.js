@@ -36,6 +36,18 @@
         }
     }
 
+    /** 看板上的卡片元素（用于「对话框收束回卡片」的共享元素动画） */
+    function cardElFor(id) {
+        return id ? document.querySelector(`.homework-card[data-hw-id="${id}"]`) : null;
+    }
+
+    /** 形变落点确认：卡片被"接收"时轻微发光一下（不改变任何既有动画） */
+    function playLanding(el) {
+        if (!el) return;
+        el.classList.add('card-morph-ack');
+        setTimeout(() => el.classList.remove('card-morph-ack'), 700);
+    }
+
     // 给 textarea 绑定/解绑自动编号回车逻辑
     function bindAutoNumber(ta, enabledRef) {
         function onKeyDown(e) {
@@ -87,7 +99,7 @@
         return 1;
     }
 
-    function openAddDialog(subject) {
+    function openAddDialog(subject, opts = {}) {
         const enabledRef = { value: state.settings.autoNumber !== false };
         const draft = getDrafts().add[subject.id] || '';
         const html = `
@@ -101,6 +113,7 @@
                 <button class="btn primary" id="btnSave" aria-label="保存作业">保存</button>
             </div>
         `;
+        let landingEl = null;
         const { close } = showModal(html, (reason) => {
             // 空白点击 / Esc 关闭：保留输入为草稿；显式按钮关闭由按钮自身处理
             if (reason === 'overlay' || reason === 'escape') {
@@ -108,8 +121,9 @@
                 if (v) saveDraft('add', subject.id, v);
                 else clearDraft('add', subject.id);
             }
+            if (reason === 'save' && !state.settings.reduceAnimation) playLanding(landingEl);
             unbindAutoNum();
-        });
+        }, { originRect: opts.originRect });
         const ta = document.getElementById('newContent');
         const toggle = document.getElementById('autoNumToggle');
 
@@ -161,13 +175,16 @@
             if (!content) { toast('内容不能为空'); return; }
             const existing = state.homeworks.find(h => h.subjectId === subject.id && h.date === state.currentViewDate);
             let newHomeworks;
+            let targetId;
             if (existing) {
+                targetId = existing.id;
                 newHomeworks = state.homeworks.map(h =>
                     h.id === existing.id ? { ...h, content: h.content + '\n' + content } : h
                 );
             } else {
+                targetId = 'hw_' + Date.now();
                 newHomeworks = [...state.homeworks, {
-                    id: 'hw_' + Date.now(),
+                    id: targetId,
                     subjectId: subject.id,
                     subjectName: subject.name,
                     content,
@@ -179,12 +196,19 @@
                 clearDraft('add', subject.id);
                 Renderer.renderAll();
                 unbindAutoNum();
-                close('save');
+                const el = cardElFor(targetId);
+                if (el) {
+                    // 新卡片的入场动画会让 getBoundingClientRect 量到缩放中间态；
+                    // 直接去掉入场类，让卡片先落到最终位置，由对话框的形变来完成"进入看板"
+                    el.classList.remove('card-enter');
+                    landingEl = el;
+                }
+                close('save', el ? el.getBoundingClientRect() : null);
             }
         });
     }
 
-    function openModifyDialog(hw) {
+    function openModifyDialog(hw, opts = {}) {
         const enabledRef = { value: state.settings.autoNumber !== false };
         const draft = getDrafts().edit[hw.id] || '';
         const html = `
@@ -198,6 +222,7 @@
                 <button class="btn primary" id="btnSave2" aria-label="保存修改">保存</button>
             </div>
         `;
+        let landingEl = null;
         const { close } = showModal(html, (reason) => {
             // 空白点击 / Esc 关闭：内容有改动则保留草稿
             if (reason === 'overlay' || reason === 'escape') {
@@ -205,8 +230,9 @@
                 if (v && v !== hw.content.trim()) saveDraft('edit', hw.id, v);
                 else clearDraft('edit', hw.id);
             }
+            if (reason === 'save' && !state.settings.reduceAnimation) playLanding(landingEl);
             unbindAutoNum();
-        });
+        }, { originRect: opts.originRect });
         const ta = document.getElementById('modContent');
         const toggle = document.getElementById('autoNumToggle2');
 
@@ -249,7 +275,9 @@
                 clearDraft('edit', hw.id);
                 Renderer.renderAll();
                 unbindAutoNum();
-                close('save');
+                const el = cardElFor(hw.id);
+                landingEl = el;
+                close('save', el ? el.getBoundingClientRect() : null);
             }
         });
     }

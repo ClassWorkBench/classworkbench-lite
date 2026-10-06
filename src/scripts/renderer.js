@@ -246,7 +246,7 @@
                         const actions = card.querySelector('.card-actions');
                         if (actions) actions.classList.remove('confirming');
                         activeCardId = null;
-                        if (dlg) dlg.openModifyDialog(hw);
+                        if (dlg) dlg.openModifyDialog(hw, { originRect: card.getBoundingClientRect() });
                     });
 
                     // 删除按钮：单击 → 进入确认态（编辑按钮消失，删除按钮扩大变红色）
@@ -335,7 +335,9 @@
                     btn.appendChild(textSpan);
                     btn.addEventListener('click', () => {
                         const dlg = getDialogs();
-                        if (dlg) dlg.openAddDialog(subj);
+                        if (!dlg) return;
+                        // 记录胶囊位置：对话框从这里"长出来"（共享元素形变）
+                        dlg.openAddDialog(subj, { originRect: btn.getBoundingClientRect() });
                     });
                     subjectPillsDiv.appendChild(btn);
                 });

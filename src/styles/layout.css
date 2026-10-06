@@ -241,6 +241,14 @@ body.reduce-anim .grid-empty {
 body.reduce-anim .bottom-capsule {
     animation: none;   /* 减弱动画：去掉上浮位移，仅保留淡入 */
 }
+/* iOS 式共享元素形变进行时：底部胶囊整体溶解退场，对话框从被点的胶囊位置长出 */
+body.morph-open .bottom-capsule {
+    /* !important：barRise 入场动画是 fill:both，会把 opacity/transform 钉在结束帧，
+       普通声明赢不过动画；用 !important 保证溶解态一定生效（过渡仍照常播放） */
+    opacity: 0 !important;
+    transform: translateX(-50%) translateY(16px) scale(0.97) !important;
+    pointer-events: none;
+}
 .bottom-capsule::-webkit-scrollbar {
     display: none;
 }
