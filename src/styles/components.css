@@ -57,8 +57,7 @@
     padding: 4px 14px 4px 10px;
     border-radius: 30px;
     border: 1px solid rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(6px) saturate(1.15);
-    -webkit-backdrop-filter: blur(6px) saturate(1.15);
+    /* 位于已模糊的顶栏内：自身再模糊几乎不可见，去掉一层 backdrop-filter */
     white-space: nowrap;
     flex-shrink: 0;
     min-height: 31px;              /* 固定胶囊高度基准，天气/预警胶囊保持一致 */
@@ -98,8 +97,7 @@
     border-radius: 30px;
     border: 1px solid rgba(255, 255, 255, 0.5);
     background: rgba(255, 255, 255, 0.35); /* 与 .weather-area 一致 */
-    backdrop-filter: blur(6px) saturate(1.15);
-    -webkit-backdrop-filter: blur(6px) saturate(1.15);
+    /* 同 .weather-area：嵌套在已模糊的顶栏内，模糊冗余 */
     white-space: nowrap;
     flex-shrink: 0;
     min-height: 31px;              /* 与 .weather-area 同一高度基准 */
@@ -326,8 +324,7 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     font-size: 0.9rem;
     color: var(--text-primary);
     background: rgba(255, 255, 255, 0.22);
-    backdrop-filter: blur(10px) saturate(1.15);
-    -webkit-backdrop-filter: blur(10px) saturate(1.15);
+    /* 卡片激活时 .card-inner 已被 filter:blur 模糊，按钮自身再模糊是冗余的（2 个/卡） */
     border: 1px solid rgba(255, 255, 255, 0.28);
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.10);
     transition: transform 0.25s var(--transition-spring), background 0.25s, box-shadow 0.25s,
@@ -481,8 +478,7 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     display: flex;
     align-items: center;
     gap: 4px;
-    backdrop-filter: blur(6px) saturate(1.15);
-    -webkit-backdrop-filter: blur(6px) saturate(1.15);
+    /* 位于已模糊的底栏内，去掉嵌套模糊 */
     transition: 0.25s var(--transition-smooth);
 }
 .date-btn:active {
@@ -534,8 +530,7 @@ body.capturing .alert-area { opacity: 0; visibility: hidden; }
     width: auto;
     max-width: 300px;
     margin-right: 6px;
-    backdrop-filter: blur(6px) saturate(1.15);
-    -webkit-backdrop-filter: blur(6px) saturate(1.15);
+    /* 位于已模糊的底栏内，去掉嵌套模糊（8 个胶囊 = 8 层 backdrop-filter） */
     display: flex;
     align-items: center;
     letter-spacing: 0.3px;
@@ -988,379 +983,6 @@ textarea::-webkit-resizer {
 }
 textarea:hover::-webkit-resizer {
     opacity: 1;
-}
-
-/* 采纳面板：候选卡片 — 比 .card 更轻的玻璃质感，放在亚克力 dialog 里不抢焦点 */
-.dialog .adopt-panel {
-    background: rgba(255, 255, 255, 0.55);
-    backdrop-filter: blur(10px) saturate(1.15);
-    -webkit-backdrop-filter: blur(10px) saturate(1.15);
-    border-radius: 20px;
-    padding: 16px 16px 14px;
-    margin-bottom: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-    transition: opacity 0.3s var(--transition-smooth),
-                transform 0.3s var(--transition-smooth),
-                height 0.3s var(--transition-smooth),
-                margin 0.3s var(--transition-smooth),
-                padding 0.3s var(--transition-smooth),
-                border 0.3s var(--transition-smooth),
-                box-shadow 0.3s var(--transition-smooth);
-    overflow: hidden;
-}
-.dialog .adopt-panel.leaving {
-    opacity: 0;
-    transform: translateX(-12px);
-}
-/* .collapse：退场收起态——负责高度以外的盒模型收缩（外边距/内边距/边框/阴影）。
-   与 removePanelAnimated 的高度归零配合，避免收起过程中边框与阴影残留一条细线 */
-.dialog .adopt-panel.collapse {
-    margin-top: 0;
-    margin-bottom: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    border-width: 0;
-    box-shadow: none;
-    overflow: hidden;
-}
-/* .merging：合并时的"聚拢"退场——具体位移由 JS 按索引分向下发（inline transform 覆盖
-   .leaving 的默认左滑），这里只负责换成加速离场曲线，营造被吸走的手感 */
-.dialog .adopt-panel.merging {
-    transition: opacity 0.35s var(--transition-smooth),
-                transform 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19),
-                height 0.4s var(--transition-smooth),
-                margin 0.4s var(--transition-smooth),
-                padding 0.4s var(--transition-smooth),
-                border 0.4s var(--transition-smooth),
-                box-shadow 0.4s var(--transition-smooth);
-}
-
-/* 候选面板头部：复选框 + 发送者 + 分数 */
-.dialog .adopt-panel-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-.dialog .adopt-panel-head .sender-line {
-    flex: 1;
-    font-size: 0.82rem;
-    color: var(--text-muted);
-    letter-spacing: 0.2px;
-}
-.dialog .adopt-panel-head .sender-line strong {
-    color: var(--text-primary);
-    font-weight: 600;
-}
-.dialog .adopt-score {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #fff;
-    padding: 3px 10px;
-    border-radius: 999px;
-    letter-spacing: 0.3px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-.dialog .adopt-score.high  { background: linear-gradient(135deg, var(--success), var(--success-deep)); }
-.dialog .adopt-score.mid   { background: linear-gradient(135deg, #d9a84a, #c29238); }
-.dialog .adopt-score.low   { background: linear-gradient(135deg, #e17171, #d45a5a); }
-
-/* 候选面板里的 textarea — 复用 .dialog textarea，仅改 min-height */
-.dialog .adopt-panel textarea.adopt-ta {
-    min-height: 40px; /* 更紧凑的默认高度 */
-    max-height: 400px; /* 防止超长消息无限制撑爆屏幕 */
-    overflow-y: auto; /* 超过 max-height 时显示滚动条 */
-    resize: vertical; /* 允许用户手动拖拽调整 */
-    box-sizing: border-box; /* padding 算入高度 */
-    padding: 6px 12px; /* 更紧凑的 padding */
-    font-size: 0.9rem; /* 稍微小一点的字体 */
-    line-height: 1.4; /* 更紧凑的行高 */
-}
-
-/* 候选面板底部按钮区 */
-.dialog .adopt-panel-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    margin-top: 10px;
-    flex-wrap: wrap;
-}
-/* 小按钮 — 复用 .btn 基础，缩小尺寸 */
-.dialog .adopt-panel-actions .btn {
-    padding: 6px 16px;
-    font-size: 0.82rem;
-    border-radius: 999px;
-}
-.dialog .adopt-panel-actions .btn-adopt {
-    box-shadow: 0 3px 10px rgba(var(--accent-rgb, 0, 0, 0), 0.18);
-}
-
-/* 已有作业面板：在 adopt-panel 基础上做差异化视觉（略暗背景 + 顶部小提示） */
-.dialog .adopt-panel.adopt-existing {
-    background: rgba(245, 240, 232, 0.55);
-    border: 1px solid rgba(212, 184, 134, 0.35);
-    box-shadow: 0 4px 16px rgba(160, 130, 80, 0.05);
-    position: relative;
-}
-.dialog .adopt-panel.adopt-existing .sender-line {
-    color: #8a7a5a;
-    font-weight: 500;
-}
-.dialog .adopt-panel.adopt-existing .sender-line .existing-meta {
-    color: var(--text-muted);
-    font-size: 0.74rem;
-    margin-left: 6px;
-    opacity: 0.85;
-}
-.dialog .adopt-existing-hint {
-    margin-top: 8px;
-    font-size: 0.74rem;
-    color: var(--text-muted);
-    opacity: 0.8;
-    line-height: 1.5;
-}
-
-/* 合并后卡片 */
-.dialog .adopt-merged-card {
-    background: rgba(255, 255, 255, 0.65);
-    backdrop-filter: blur(10px) saturate(1.15);
-    -webkit-backdrop-filter: blur(10px) saturate(1.15);
-    border-radius: 20px;
-    padding: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
-    transition:
-        opacity 0.4s var(--transition-smooth),
-        transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
-        box-shadow 0.35s var(--transition-smooth);
-}
-.dialog .adopt-merged-card.merged-enter {
-    opacity: 0;
-    transform: translateY(22px) scale(0.86);
-    box-shadow: none;
-}
-.dialog .adopt-merged-card.merged-show {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-}
-.dialog .adopt-merged-label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    letter-spacing: 0.2px;
-}
-.dialog .adopt-merged-card #mergedTa {
-    min-height: 160px;
-}
-
-/* 采纳面板 v2：候选列表 + 固定操作栏 */
-.dialog.adopt-dialog {
-    overflow: hidden;
-}
-.dialog .adopt-root {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    min-width: 0;
-    max-height: calc(80vh - 46px);
-}
-.dialog .adopt-scroll {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    padding-right: 4px;
-}
-.dialog .adopt-top-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-.dialog .adopt-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.dialog .adopt-list .adopt-panel {
-    margin-bottom: 0;
-}
-.dialog .adopt-hint {
-    margin: 0;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    line-height: 1.6;
-}
-.dialog .adopt-actions {
-    flex: 0 0 auto;
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    align-items: center;
-    margin-top: 4px;
-    padding-top: 12px;
-    flex-wrap: wrap;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-}
-.dialog .adopt-panel {
-    background: rgba(0, 0, 0, 0.03);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: 1.5px solid rgba(0, 0, 0, 0.06);
-    border-radius: 16px;
-    box-shadow: none;
-    padding: 14px 16px;
-}
-.dialog .adopt-panel.adopt-existing {
-    background: rgba(var(--accent-rgb, 45, 62, 142), 0.05);
-    border-color: rgba(var(--accent-rgb, 45, 62, 142), 0.12);
-}
-.dialog .adopt-panel.adopt-existing .sender-line {
-    color: var(--accent);
-}
-.dialog .adopt-panel.is-new {
-    border-color: rgba(74, 184, 122, 0.55);
-    box-shadow: var(--glow-success);
-}
-.dialog .adopt-existing-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 10px;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-}
-.dialog .adopt-merge-modal {
-    min-width: 0;
-}
-.dialog .adopt-merge-modal h3 {
-    margin: 0 0 6px;
-}
-.dialog .adopt-merge-note {
-    margin: 0 0 12px;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-}
-.dialog .adopt-merge-modal textarea {
-    min-height: 180px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-/* 采纳面板顶部：学科胶囊 + 日期胶囊 —— 统一尺寸令牌（高度 40px / 垂直 padding 7px / 字号 0.88rem） */
-.dialog .adopt-subject-badge,
-.dialog .inline-date-capsule {
-    height: 40px;
-    padding: 7px 14px;
-    border-radius: 999px;
-    font-size: 0.88rem;
-    line-height: 1.35;
-}
-
-/* 采纳面板顶部学科胶囊徽章 */
-.dialog .adopt-subject-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(91, 106, 191, 0.08);
-    backdrop-filter: blur(6px) saturate(1.15);
-    -webkit-backdrop-filter: blur(6px) saturate(1.15);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-}
-.dialog .adopt-subject-badge .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
-    flex-shrink: 0;
-}
-.dialog .adopt-subject-badge .name {
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    letter-spacing: 0.2px;
-}
-.dialog .adopt-subject-badge .source {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    padding: 1px 7px;
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.05);
-}
-
-/* 采纳面板内的日期胶囊（‹ 📅 MM月DD日 ›） */
-.dialog .inline-date-capsule {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: rgba(255, 255, 255, 0.55);
-    backdrop-filter: blur(6px) saturate(1.15);
-    -webkit-backdrop-filter: blur(6px) saturate(1.15);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-.dialog .inline-date-capsule .idc-arrow {
-    width: 0;
-    height: 28px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.06);
-    color: var(--text-muted);
-    font-size: 1.15rem;
-    line-height: 1;
-    font-weight: 300;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    opacity: 0;
-    pointer-events: none;
-    overflow: hidden;
-    padding: 0;
-    margin: 0 -3px;
-    transition: opacity 0.25s var(--transition-smooth),
-                width 0.25s var(--transition-smooth),
-                margin 0.25s var(--transition-smooth),
-                background 0.15s,
-                transform 0.15s;
-}
-.dialog .inline-date-capsule.date-active .idc-arrow {
-    opacity: 1;
-    width: 28px;
-    margin: 0;
-    pointer-events: auto;
-}
-.dialog .inline-date-capsule .idc-arrow:active {
-    transform: scale(0.90);
-    background: rgba(0, 0, 0, 0.12);
-}
-.dialog .inline-date-capsule .idc-date-btn {
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    padding: 0 10px;
-    border-radius: 999px;
-    font-size: 0.88rem;
-    color: var(--text-primary);
-    transition: background 0.2s, transform 0.15s var(--transition-smooth);
-    font-weight: 500;
-    letter-spacing: 0.2px;
-    line-height: 1.35;
-    height: 100%;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-.dialog .inline-date-capsule .idc-date-btn:hover {
-    background: rgba(0, 0, 0, 0.04);
-}
-.dialog .inline-date-capsule .idc-date-btn:active {
-    transform: scale(0.94);
 }
 
 /* Toast */
@@ -2844,12 +2466,11 @@ body.blur-bars-off .more-sheet-panel {
     background: rgba(238, 238, 238, 0.95);
     border-color: rgba(0, 0, 0, 0.08);
 }
+/* 这些元素自身已不模糊（嵌套在已模糊的栏内），关闭模糊时只需换成实色底 */
 body.blur-bars-off .weather-area,
 body.blur-bars-off .alert-area,
 body.blur-bars-off .date-btn,
 body.blur-bars-off .subject-pill {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
     background: rgba(255, 255, 255, 0.88);
 }
 body.blur-bars-off .toast {
